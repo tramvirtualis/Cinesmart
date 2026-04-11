@@ -1,0 +1,236 @@
+/* Price Table Component - extracted from price-management.css for reuse */
+.price-table-wrapper {
+  overflow-x: auto;
+  border-radius: 16px;
+  background: rgba(10, 6, 20, 0.6);
+  border: 1px solid rgba(123, 97, 255, 0.15);
+  padding: 4px;
+  margin-bottom: 16px;
+}
+
+.price-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  min-width: 600px;
+}
+
+.price-table__corner {
+  min-width: 200px;
+  padding: 20px 16px;
+  background: linear-gradient(135deg, rgba(123, 97, 255, 0.2) 0%, rgba(232, 59, 65, 0.2) 100%);
+  border-right: 2px solid rgba(123, 97, 255, 0.3);
+  border-bottom: 2px solid rgba(123, 97, 255, 0.3);
+  text-align: center;
+  font-weight: 800;
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: #ffd159;
+  text-shadow: 0 0 10px rgba(255, 209, 89, 0.5);
+  position: sticky;
+  left: 0;
+  z-index: 10;
+}
+
+.price-table__header {
+  padding: 16px 12px;
+  background: linear-gradient(180deg, rgba(123, 97, 255, 0.25) 0%, rgba(123, 97, 255, 0.15) 100%);
+  border-right: 1px solid rgba(123, 97, 255, 0.2);
+  border-bottom: 2px solid rgba(123, 97, 255, 0.3);
+  text-align: center;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.price-table__header:last-child {
+  border-right: none;
+}
+
+.price-table__room-type {
+  font-size: 18px;
+  font-weight: 800;
+  color: #fff;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  text-shadow: 0 2px 8px rgba(123, 97, 255, 0.6);
+}
+
+.price-table__fill-input {
+  width: 100%;
+  max-width: 100px;
+  padding: 8px 10px;
+  background: rgba(20, 15, 16, 0.8);
+  border: 1px solid rgba(123, 97, 255, 0.4);
+  border-radius: 8px;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  text-align: center;
+  transition: all 200ms ease;
+}
+
+.price-table__fill-input::placeholder {
+  color: rgba(255, 255, 255, 0.4);
+  font-size: 11px;
+}
+
+.price-table__fill-input:focus {
+  outline: none;
+  border-color: rgba(123, 97, 255, 0.8);
+  background: rgba(30, 24, 25, 0.9);
+  box-shadow: 0 0 0 3px rgba(123, 97, 255, 0.2), 0 0 12px rgba(123, 97, 255, 0.4);
+}
+
+.price-table__row {
+  transition: all 200ms ease;
+}
+
+.price-table__row:hover {
+  background: rgba(123, 97, 255, 0.08);
+}
+
+.price-table__row:hover .price-table__seat-label {
+  background: linear-gradient(135deg, rgba(123, 97, 255, 0.3) 0%, rgba(232, 59, 65, 0.3) 100%);
+}
+
+.price-table__seat-label {
+  padding: 20px 16px;
+  background: linear-gradient(135deg, rgba(123, 97, 255, 0.15) 0%, rgba(232, 59, 65, 0.15) 100%);
+  border-right: 2px solid rgba(123, 97, 255, 0.3);
+  border-bottom: 1px solid rgba(123, 97, 255, 0.15);
+  text-align: center;
+  position: sticky;
+  left: 0;
+  z-index: 5;
+  transition: all 200ms ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.price-table__seat-type {
+  font-size: 15px;
+  font-weight: 700;
+  color: #fff;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.price-table__cell {
+  padding: 16px 12px;
+  background: rgba(20, 15, 16, 0.4);
+  border-right: 1px solid rgba(255, 255, 255, 0.08);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  text-align: center;
+  transition: all 200ms ease;
+}
+
+.price-table__row:hover .price-table__cell {
+  background: rgba(30, 24, 25, 0.6);
+}
+
+.price-table__cell:last-child {
+  border-right: none;
+}
+
+.price-table__cell-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 4px;
+  min-height: 90px;
+  justify-content: center;
+}
+
+.price-table__price-input {
+  width: 100%;
+  max-width: 140px;
+  padding: 12px 14px;
+  background: rgba(10, 6, 20, 0.9);
+  border: 2px solid rgba(123, 97, 255, 0.3);
+  border-radius: 10px;
+  color: #fff;
+  font-size: 16px;
+  font-weight: 700;
+  text-align: center;
+  transition: all 200ms ease;
+  box-sizing: border-box;
+  display: block;
+}
+
+.price-table__price-input::placeholder {
+  color: rgba(255, 255, 255, 0.3);
+}
+
+.price-table__price-input:focus {
+  outline: none;
+  border-color: rgba(123, 97, 255, 0.8);
+  background: rgba(20, 15, 16, 0.95);
+  box-shadow: 0 0 0 3px rgba(123, 97, 255, 0.2), 0 0 16px rgba(123, 97, 255, 0.5);
+}
+
+.price-table__price-input:hover {
+  border-color: rgba(123, 97, 255, 0.5);
+}
+
+.price-table__currency {
+  font-size: 13px;
+  font-weight: 600;
+  color: #ffd159;
+  text-shadow: 0 0 8px rgba(255, 209, 89, 0.4);
+  letter-spacing: 0.02em;
+  display: block;
+  line-height: 1.5;
+  text-align: center;
+  margin-top: 2px;
+}
+
+.price-table__hint {
+  margin-top: 20px;
+  padding: 16px 20px;
+  background: rgba(123, 97, 255, 0.1);
+  border: 1px solid rgba(123, 97, 255, 0.3);
+  border-radius: 12px;
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 14px;
+  line-height: 1.6;
+  text-align: center;
+  font-style: italic;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .price-table__corner,
+  .price-table__seat-label {
+    min-width: 150px;
+    padding: 12px 10px;
+    font-size: 11px;
+  }
+
+  .price-table__header {
+    padding: 12px 8px;
+  }
+
+  .price-table__room-type,
+  .price-table__seat-type {
+    font-size: 12px;
+  }
+
+  .price-table__fill-input,
+  .price-table__price-input {
+    max-width: 80px;
+    padding: 6px 8px;
+    font-size: 12px;
+  }
+
+  .price-table__currency {
+    font-size: 11px;
+  }
+}
+
+
+

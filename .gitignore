@@ -1,0 +1,47 @@
+# MovieTicketBookingLocal — monorepo (Java + Vite/React)
+
+# --- OS ---
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# --- Secrets & local environment ---
+.env
+.env.*
+!.env.example
+!**/.env.example
+!.env.*.example
+
+# --- Logs ---
+*.log
+logs/
+
+# --- Java / Maven ---
+**/target/
+
+# --- Node ---
+**/node_modules/
+
+# --- Frontend build outputs ---
+**/dist/
+**/dist-ssr/
+
+# --- Tooling caches & coverage ---
+**/coverage/
+**/.nyc_output/
+**/.vite/
+**/.eslintcache
+*.tsbuildinfo
+
+# --- Local DB / dev artifacts (H2, etc.) ---
+*.mv.db
+*.trace.db
+
+# --- Temp & editor backup ---
+*.tmp
+*.temp
+*.bak
+*~
+*.swp
+*.swo

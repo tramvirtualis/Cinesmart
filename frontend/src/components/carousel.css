@@ -1,0 +1,24 @@
+.poster-carousel { position: relative; overflow: hidden; }
+.poster-carousel__track { display: flex; transition: transform 400ms ease; will-change: transform; }
+.poster-carousel__slide { min-width: 100%; height: 56vh; max-height: 500px; position: relative; }
+.poster-carousel__slide img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+.poster-carousel__arrow { 
+  position: absolute; top: 50%; transform: translateY(-50%);
+  background: rgba(0,0,0,0.45); color: #fff; border: 1px solid rgba(255,255,255,0.18);
+  width: 42px; height: 42px; border-radius: 50%; display: grid; place-items: center; cursor: pointer;
+}
+.poster-carousel__arrow--prev { left: 14px; }
+.poster-carousel__arrow--next { right: 14px; }
+.poster-carousel__arrow:hover { background: rgba(0,0,0,0.6); }
+
+.poster-carousel__dots { position: absolute; left: 0; right: 0; bottom: 14px; display: flex; gap: 8px; justify-content: center; }
+.poster-carousel__dot { width: 10px; height: 10px; border-radius: 50%; border: 1px solid rgba(255,255,255,0.6); background: rgba(0,0,0,0.3); cursor: pointer; }
+.poster-carousel__dot[aria-current="true"] { background: #ff2f38; border-color: #ff2f38; box-shadow: 0 0 0 4px rgba(255,47,56,0.25); }
+
+@media (max-width: 768px) {
+  .poster-carousel__slide { height: 44vh; max-height: 340px; }
+}
+
+
+

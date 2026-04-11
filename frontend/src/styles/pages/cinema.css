@@ -1,0 +1,443 @@
+.cinema-header {
+  background: linear-gradient(135deg, #4a1a5c 0%, #6b2a7a 50%, #3d0f4a 100%);
+  padding: 32px 0 28px;
+  border-bottom: 2px solid rgba(255,255,255,0.12);
+  position: relative;
+  z-index: 1;
+  box-shadow: 0 4px 20px rgba(107, 42, 122, 0.4), inset 0 1px 0 rgba(255,255,255,0.1);
+  animation: headerSlideDown 0.5s ease-out;
+  overflow: hidden;
+}
+.cinema-header::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.05), transparent);
+  animation: shimmer 3s infinite;
+}
+
+.cinema-header__title {
+  font-family: 'Inter', 'Roboto', 'Segoe UI', 'Arial', sans-serif;
+  font-size: clamp(28px, 4.2vw, 42px);
+  font-weight: 900;
+  color: #fff;
+  margin: 0 0 12px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  text-shadow: 
+    0 2px 12px rgba(0,0,0,0.7),
+    0 0 40px rgba(255, 209, 89, 0.5),
+    0 4px 20px rgba(0,0,0,0.9),
+    0 0 0 2px rgba(0,0,0,0.3);
+  position: relative;
+  display: inline-block;
+  line-height: 1.1;
+  animation: titleGlow 2s ease-in-out infinite alternate;
+}
+
+.cinema-header__title::after {
+  content: '';
+  position: absolute;
+  bottom: -8px;
+  left: 0;
+  width: 100%;
+  height: 4px;
+  background: linear-gradient(90deg, transparent, rgba(255, 209, 89, 0.9) 15%, rgba(255, 209, 89, 0.9) 85%, transparent);
+  border-radius: 2px;
+  box-shadow: 0 2px 10px rgba(255, 209, 89, 0.6), 0 0 20px rgba(255, 209, 89, 0.3);
+  animation: underlinePulse 2s ease-in-out infinite;
+}
+
+.cinema-header__address {
+  color: #e6e1e2;
+  margin: 0;
+  font-size: 14px;
+}
+
+.cinema-nav {
+  background: rgba(20, 15, 16, 0.95);
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+  position: relative;
+  z-index: 1;
+}
+.cinema-nav .container {
+  display: flex;
+  gap: 0;
+}
+.cinema-nav__tab {
+  padding: 14px 24px;
+  background: transparent;
+  border: 0;
+  color: #c9c4c5;
+  font-weight: 700;
+  font-size: 14px;
+  letter-spacing: 0.05em;
+  cursor: pointer;
+  border-bottom: 3px solid transparent;
+  transition: all 300ms ease;
+  position: relative;
+}
+.cinema-nav__tab::after {
+  content: '';
+  position: absolute;
+  bottom: -3px;
+  left: 50%;
+  width: 0;
+  height: 3px;
+  background: #ffd159;
+  transition: all 300ms ease;
+  transform: translateX(-50%);
+}
+.cinema-nav__tab:hover {
+  color: #fff;
+  transform: translateY(-2px);
+}
+.cinema-nav__tab:hover::after {
+  width: 60%;
+}
+.cinema-nav__tab--active {
+  color: #ffd159;
+  border-bottom-color: #ffd159;
+  animation: tabActiveGlow 2s ease-in-out infinite;
+}
+.cinema-nav__tab--active::after {
+  width: 100%;
+}
+
+.cinema-movies {
+  display: grid;
+  gap: 24px;
+}
+.cinema-movie-card {
+  display: grid;
+  grid-template-columns: 180px 1fr;
+  gap: 20px;
+  background: #1a1415;
+  border-radius: 12px;
+  padding: 16px;
+  border: 1px solid rgba(255,255,255,0.06);
+  transition: all 300ms ease;
+  animation: cardFadeIn 0.5s ease-out backwards;
+}
+.cinema-movie-card:nth-child(1) { animation-delay: 0.1s; }
+.cinema-movie-card:nth-child(2) { animation-delay: 0.2s; }
+.cinema-movie-card:nth-child(3) { animation-delay: 0.3s; }
+.cinema-movie-card:nth-child(4) { animation-delay: 0.4s; }
+.cinema-movie-card:hover {
+  transform: translateY(-4px);
+  border-color: rgba(107, 42, 122, 0.5);
+  box-shadow: 0 8px 24px rgba(107, 42, 122, 0.3);
+}
+
+.cinema-movie-card__poster {
+  width: 180px;
+  height: 260px;
+  border-radius: 8px;
+  overflow: hidden;
+  transition: transform 300ms ease;
+}
+.cinema-movie-card:hover .cinema-movie-card__poster {
+  transform: scale(1.05);
+}
+.cinema-movie-card__poster img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 300ms ease;
+}
+.cinema-movie-card:hover .cinema-movie-card__poster img {
+  transform: scale(1.1);
+}
+.cinema-movie-card__content {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.cinema-movie-card__header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.cinema-movie-card__title {
+  font-size: 20px;
+  font-weight: 800;
+  margin: 0;
+  color: #fff;
+}
+.cinema-movie-card__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  color: #c9c4c5;
+  font-size: 13px;
+}
+.cinema-movie-card__rating-desc {
+  padding: 8px 12px;
+  background: rgba(255, 209, 89, 0.15);
+  border: 1px solid rgba(255, 209, 89, 0.3);
+  border-radius: 6px;
+  color: #ffd159;
+  font-size: 12px;
+}
+.cinema-movie-card__showtimes {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 8px;
+}
+.cinema-movie-card__date-selector {
+  margin-bottom: 4px;
+}
+.cinema-movie-card__format {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.cinema-movie-card__format-label {
+  font-weight: 700;
+  color: #c9c4c5;
+  font-size: 13px;
+}
+.cinema-movie-card__times {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.cinema-time-btn {
+  padding: 8px 14px;
+  background: transparent;
+  border: 1px solid rgba(255, 209, 89, 0.4);
+  border-radius: 6px;
+  color: #ffd159;
+  text-decoration: none;
+  font-weight: 600;
+  transition: all 200ms ease;
+}
+.cinema-time-btn:hover {
+  background: rgba(255, 209, 89, 0.15);
+  border-color: #ffd159;
+  color: #ffeb9e;
+}
+.cinema-movie-card__more-link {
+  color: #3b82f6;
+  text-decoration: none;
+  font-size: 13px;
+  margin-top: 4px;
+}
+.cinema-movie-card__more-link:hover {
+  text-decoration: underline;
+}
+
+/* Schedule Section */
+.schedule-date-btn {
+  padding: 12px 18px;
+  background: rgba(30, 24, 25, 0.6);
+  border: 2px solid rgba(255,255,255,0.15);
+  border-radius: 12px;
+  color: #e6e1e2;
+  cursor: pointer;
+  transition: all 300ms ease;
+  text-align: center;
+  min-width: 100px;
+}
+.schedule-date-btn:hover {
+  background: rgba(40, 32, 33, 0.8);
+  border-color: rgba(232, 59, 65, 0.4);
+  transform: translateY(-2px);
+}
+.schedule-date-btn--active {
+  background: linear-gradient(135deg, #e83b41 0%, #a10f14 100%);
+  border-color: #e83b41;
+  color: #fff;
+  box-shadow: 0 4px 16px rgba(232, 59, 65, 0.4);
+  transform: translateY(-2px);
+}
+.schedule-date-btn__date {
+  font-size: 18px;
+  font-weight: 900;
+  line-height: 1.2;
+  margin-bottom: 4px;
+}
+.schedule-date-btn__day {
+  font-size: 12px;
+  opacity: 0.9;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* Cinema Schedule Cards */
+.cinema-schedule-card {
+  background: rgba(30, 24, 25, 0.7);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 16px;
+  padding: 20px 22px;
+  border-left: 4px solid rgba(232, 59, 65, 0.6);
+  transition: all 300ms ease;
+  position: relative;
+  overflow: hidden;
+}
+.cinema-schedule-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 150px;
+  height: 150px;
+  background: radial-gradient(circle, rgba(232, 59, 65, 0.08) 0%, transparent 70%);
+  pointer-events: none;
+}
+.cinema-schedule-card:hover {
+  background: rgba(40, 32, 33, 0.85);
+  border-left-color: #e83b41;
+  box-shadow: 0 8px 24px rgba(232, 59, 65, 0.2);
+  transform: translateY(-2px);
+}
+.cinema-schedule-card__header {
+  margin-bottom: 16px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+}
+.cinema-schedule-card__title {
+  font-size: 18px;
+  font-weight: 800;
+  color: #fff;
+  margin: 0 0 6px;
+  letter-spacing: 0.02em;
+}
+.cinema-schedule-card__address {
+  font-size: 13px;
+  color: #bdb7b8;
+  margin: 0;
+  line-height: 1.5;
+}
+.cinema-schedule-card__formats {
+  display: grid;
+  gap: 14px;
+}
+.cinema-schedule-card__format {
+  padding: 12px 14px;
+  background: rgba(20, 15, 16, 0.6);
+  border-radius: 10px;
+  border: 1px solid rgba(255,255,255,0.06);
+}
+.cinema-schedule-card__format-label {
+  font-size: 13px;
+  font-weight: 700;
+  color: #ffd159;
+  margin-bottom: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.cinema-schedule-card__times {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.showtime-btn {
+  padding: 10px 16px;
+  background: rgba(45, 38, 39, 0.8);
+  border: 1px solid rgba(255,255,255,0.15);
+  border-radius: 8px;
+  color: #fff;
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 14px;
+  transition: all 250ms ease;
+  display: inline-block;
+  position: relative;
+  overflow: hidden;
+}
+.showtime-btn::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  border-radius: 50%;
+  background: rgba(232, 59, 65, 0.3);
+  transform: translate(-50%, -50%);
+  transition: width 0.4s, height 0.4s;
+}
+.showtime-btn:hover {
+  background: linear-gradient(135deg, #e83b41 0%, #a10f14 100%);
+  border-color: #e83b41;
+  color: #fff;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(232, 59, 65, 0.4);
+}
+.showtime-btn:hover::before {
+  width: 200px;
+  height: 200px;
+}
+
+/* Schedule Page Showtime Buttons */
+.schedule-showtime-btn {
+  padding: 10px 16px;
+  background: rgba(45, 38, 39, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 8px;
+  color: #fff;
+  font-weight: 600;
+  font-size: 14px;
+  transition: all 250ms ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  position: relative;
+  overflow: hidden;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.schedule-showtime-btn::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  border-radius: 50%;
+  background: rgba(232, 59, 65, 0.3);
+  transform: translate(-50%, -50%);
+  transition: width 0.4s, height 0.4s;
+  z-index: 0;
+}
+
+.schedule-showtime-btn:hover {
+  background: linear-gradient(135deg, #e83b41 0%, #a10f14 100%);
+  border-color: #e83b41;
+  color: #fff;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(232, 59, 65, 0.4);
+}
+
+.schedule-showtime-btn:hover::before {
+  width: 200px;
+  height: 200px;
+}
+
+.schedule-showtime-btn:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 8px rgba(232, 59, 65, 0.3);
+}
+
+.schedule-showtime-btn__time {
+  position: relative;
+  z-index: 1;
+  font-weight: 700;
+}
+
+.schedule-showtime-btn__format {
+  position: relative;
+  z-index: 1;
+  opacity: 0.9;
+  font-weight: 500;
+}
+
+
+

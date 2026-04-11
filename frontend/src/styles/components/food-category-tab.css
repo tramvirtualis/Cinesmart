@@ -1,0 +1,29 @@
+.food-category-tab {
+  padding: 10px 20px;
+  font-size: 14px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.7);
+  background: rgba(30, 24, 25, 0.6);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 20px;
+  cursor: pointer;
+  transition: all 200ms ease;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.food-category-tab:hover {
+  background: rgba(40, 32, 33, 0.8);
+  border-color: rgba(255,255,255,0.2);
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.food-category-tab--active {
+  background: linear-gradient(135deg, rgba(232, 59, 65, 0.3) 0%, rgba(232, 59, 65, 0.2) 100%);
+  border-color: #e83b41;
+  color: #fff;
+  box-shadow: 0 4px 12px rgba(232, 59, 65, 0.3);
+}
+
+
+

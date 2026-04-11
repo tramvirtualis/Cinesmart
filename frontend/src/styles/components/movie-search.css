@@ -1,0 +1,45 @@
+.movie-search {
+  position: relative;
+  flex: 1;
+  min-width: 300px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: rgba(30, 24, 25, 0.7);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 12px;
+  transition: all 300ms ease;
+}
+
+.movie-search:focus-within {
+  border-color: #e83b41;
+  box-shadow: 0 0 0 3px rgba(232, 59, 65, 0.1);
+}
+
+.movie-search svg {
+  color: #bdb7b8;
+  flex-shrink: 0;
+}
+
+.movie-search__input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  color: #fff;
+  font-size: 14px;
+  outline: none;
+}
+
+.movie-search__input::placeholder {
+  color: #8e8788;
+}
+
+@media (max-width: 768px) {
+  .movie-search {
+    min-width: 100%;
+  }
+}
+
+
+

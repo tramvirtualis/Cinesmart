@@ -1,0 +1,18 @@
+.movie-empty {
+  text-align: center;
+  padding: 60px 20px;
+  color: #bdb7b8;
+}
+
+.movie-empty svg {
+  color: #8e8788;
+  margin-bottom: 16px;
+}
+
+.movie-empty p {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+
+

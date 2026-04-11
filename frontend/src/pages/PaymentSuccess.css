@@ -1,0 +1,231 @@
+.payment-success__container {
+  background: rgba(26, 20, 21, 0.95);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 16px;
+  padding: 48px 32px;
+  max-width: 600px;
+  width: 100%;
+  margin: 0 auto;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+  text-align: center;
+  animation: slideUp 0.5s ease-out;
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.payment-success__icon {
+  margin: 0 auto 24px;
+  width: 80px;
+  height: 80px;
+  animation: scaleIn 0.6s ease-out 0.2s both;
+}
+
+@keyframes scaleIn {
+  from {
+    transform: scale(0);
+  }
+  to {
+    transform: scale(1);
+  }
+}
+
+.payment-success__icon svg circle {
+  animation: fillCircle 0.4s ease-out 0.3s both;
+}
+
+@keyframes fillCircle {
+  from {
+    fill-opacity: 0;
+  }
+  to {
+    fill-opacity: 1;
+  }
+}
+
+.payment-success__icon svg path {
+  stroke-dasharray: 100;
+  stroke-dashoffset: 100;
+  animation: drawCheck 0.6s ease-out 0.5s forwards;
+}
+
+@keyframes drawCheck {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+.payment-success__title {
+  font-size: 32px;
+  font-weight: 700;
+  color: #ffd159;
+  margin: 0 0 12px 0;
+  animation: fadeIn 0.5s ease-out 0.4s both;
+}
+
+.payment-success__message {
+  font-size: 16px;
+  color: #c9c4c5;
+  margin: 0 0 32px 0;
+  line-height: 1.5;
+  animation: fadeIn 0.5s ease-out 0.5s both;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.payment-success__details {
+  background: rgba(40, 32, 33, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  padding: 24px;
+  margin: 0 0 32px 0;
+  animation: fadeIn 0.5s ease-out 0.6s both;
+}
+
+.payment-success__detail-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.payment-success__detail-item:last-child {
+  border-bottom: none;
+}
+
+.payment-success__detail-label {
+  font-size: 14px;
+  color: #c9c4c5;
+  font-weight: 500;
+}
+
+.payment-success__detail-value {
+  font-size: 14px;
+  color: #ffffff;
+  font-weight: 600;
+  word-break: break-all;
+  text-align: right;
+  max-width: 60%;
+}
+
+.payment-success__amount {
+  color: #ffd159;
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.payment-success__actions {
+  display: flex;
+  gap: 16px;
+  margin: 0 0 24px 0;
+  animation: fadeIn 0.5s ease-out 0.7s both;
+}
+
+.payment-success__button {
+  flex: 1;
+  padding: 14px 24px;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.payment-success__button--primary {
+  background: linear-gradient(135deg, #e83b41 0%, #c92e33 100%);
+  color: white;
+  border: 1px solid rgba(232, 59, 65, 0.3);
+}
+
+.payment-success__button--primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(232, 59, 65, 0.4);
+  background: linear-gradient(135deg, #f04a50 0%, #d93e44 100%);
+}
+
+.payment-success__button--secondary {
+  background: rgba(26, 20, 21, 0.8);
+  color: #ffd159;
+  border: 2px solid rgba(255, 209, 89, 0.4);
+}
+
+.payment-success__button--secondary:hover {
+  background: rgba(40, 32, 33, 0.9);
+  border-color: rgba(255, 209, 89, 0.6);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(255, 209, 89, 0.2);
+}
+
+.payment-success__note {
+  background: rgba(255, 193, 7, 0.15);
+  border: 1px solid rgba(255, 193, 7, 0.3);
+  border-radius: 8px;
+  padding: 16px;
+  animation: fadeIn 0.5s ease-out 0.8s both;
+}
+
+.payment-success__note p {
+  margin: 0;
+  font-size: 14px;
+  color: #ffd159;
+  line-height: 1.5;
+}
+
+.payment-success__note strong {
+  color: #ffd159;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .payment-success__container {
+    padding: 32px 24px;
+  }
+
+  .payment-success__title {
+    font-size: 24px;
+  }
+
+  .payment-success__message {
+    font-size: 14px;
+  }
+
+  .payment-success__actions {
+    flex-direction: column;
+  }
+
+  .payment-success__button {
+    width: 100%;
+  }
+
+  .payment-success__detail-value {
+    max-width: 50%;
+    font-size: 12px;
+  }
+
+  .payment-success__amount {
+    font-size: 16px;
+  }
+}
+

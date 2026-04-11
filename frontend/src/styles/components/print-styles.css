@@ -1,0 +1,94 @@
+/* Print styles for ticket */
+@media print {
+  /* Hide everything except ticket modal */
+  * {
+    visibility: hidden;
+  }
+  
+  .ticket-modal,
+  .ticket-modal * {
+    visibility: visible;
+  }
+  
+  /* Hide scrollbars */
+  * {
+    overflow: visible !important;
+    scrollbar-width: none !important;
+    -ms-overflow-style: none !important;
+  }
+  
+  *::-webkit-scrollbar {
+    display: none !important;
+    width: 0 !important;
+    height: 0 !important;
+  }
+  
+  .ticket-modal {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    max-width: 100%;
+    max-height: none !important;
+    margin: 0;
+    padding: 0;
+    box-shadow: none;
+    border-radius: 0;
+    overflow: visible !important;
+    page-break-after: avoid;
+    page-break-inside: avoid;
+  }
+  
+  /* Hide footer buttons */
+  .ticket-modal__footer,
+  .ticket-modal__footer *,
+  button,
+  .btn {
+    display: none !important;
+    visibility: hidden !important;
+  }
+  
+  .modal-overlay {
+    position: static !important;
+    background: transparent !important;
+    padding: 0 !important;
+    overflow: visible !important;
+  }
+  
+  /* Hide header, footer, and other page elements */
+  body,
+  html {
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: visible !important;
+  }
+  
+  header,
+  .site-header,
+  footer,
+  .site-footer,
+  .main,
+  .section,
+  nav,
+  .nav {
+    display: none !important;
+    visibility: hidden !important;
+  }
+  
+  /* Ensure ticket content is visible and properly formatted */
+  .ticket-modal > * {
+    display: block !important;
+  }
+  
+  .ticket-modal > div {
+    overflow: visible !important;
+  }
+  
+  @page {
+    margin: 0;
+    size: A4;
+  }
+}
+
+
+

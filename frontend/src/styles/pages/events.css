@@ -1,0 +1,117 @@
+/* Events & Promotions */
+.events-page {
+  padding: 0 0 80px;
+  background: radial-gradient(circle at top, rgba(123, 97, 255, 0.15) 0%, rgba(232, 59, 65, 0.08) 40%, rgba(12, 8, 20, 0.98) 70%, #0a0611 100%);
+  min-height: 100vh;
+  color: #f0eef5;
+}
+
+.events-hero {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 32px;
+  margin-bottom: 36px;
+  margin-top: 48px;
+}
+
+.events-hero__eyebrow {
+  text-transform: uppercase;
+  letter-spacing: 0.32em;
+  font-weight: 700;
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.6);
+  margin-bottom: 8px;
+}
+
+.events-hero__title {
+  font-size: clamp(32px, 4vw, 42px);
+  font-weight: 900;
+  margin: 0 0 12px;
+}
+
+.events-hero__subtitle {
+  font-size: 18px;
+  line-height: 1.6;
+  color: rgba(255, 255, 255, 0.75);
+  max-width: 560px;
+}
+
+.events-hero__cta {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 18px 28px;
+  border-radius: 18px;
+  background: linear-gradient(135deg, rgba(123, 97, 255, 0.2) 0%, rgba(232, 59, 65, 0.2) 100%);
+  border: 1px solid rgba(123, 97, 255, 0.4);
+  font-weight: 600;
+  min-width: 220px;
+  text-align: center;
+  text-decoration: none;
+  color: #fff;
+  transition: all 300ms ease;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+}
+
+.events-hero__cta::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+  transition: left 0.5s ease;
+}
+
+.events-hero__cta:hover {
+  background: linear-gradient(135deg, rgba(123, 97, 255, 0.35) 0%, rgba(232, 59, 65, 0.35) 100%);
+  border-color: rgba(123, 97, 255, 0.6);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(123, 97, 255, 0.3);
+}
+
+.events-hero__cta:hover::before {
+  left: 100%;
+}
+
+.events-hero__cta-text {
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+}
+
+.events-hero__cta-count {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.75);
+  font-weight: 500;
+}
+
+.voucher-showcase {
+  display: grid;
+  gap: 32px;
+}
+
+@media (max-width: 992px) {
+  .events-hero {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .events-hero__cta {
+    align-self: stretch;
+    text-align: center;
+  }
+}
+
+@media (max-width: 640px) {
+  .events-page {
+    padding: 0 0 60px;
+  }
+}
+
+
+

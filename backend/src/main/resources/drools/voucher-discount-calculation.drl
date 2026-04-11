@@ -1,0 +1,139 @@
+package com.example.backend.drools;
+
+import com.example.backend.dtos.VoucherDiscountFact;
+import com.example.backend.entities.enums.DiscountType;
+import com.example.backend.entities.enums.VoucherScope;
+import java.time.LocalDateTime;
+import java.math.BigDecimal;
+
+// Rule 1: Kiểm tra voucher có trong thời gian hiệu lực không
+rule "Voucher Not In Valid Period"
+    salience 20
+    when
+        fact: VoucherDiscountFact(
+            startDate != null,
+            endDate != null,
+            orderDate != null,
+            (orderDate.isBefore(startDate) || orderDate.isAfter(endDate)),
+            errorMessage == null
+        )
+    then
+        fact.setApplicable(false);
+        fact.setErrorMessage("Voucher không còn trong thời gian hiệu lực");
+        fact.setDiscountAmount(BigDecimal.ZERO);
+        fact.setFinalAmount(fact.getOrderAmount());
+        System.out.println("ERROR: Voucher không còn trong thời gian hiệu lực");
+    end
+
+// Rule 2: Kiểm tra đơn hàng có đạt giá trị tối thiểu không
+rule "Order Amount Below Minimum"
+    salience 20
+    when
+        fact: VoucherDiscountFact(
+            minOrderAmount != null,
+            orderAmount != null,
+            orderAmount.compareTo(minOrderAmount) < 0,
+            errorMessage == null
+        )
+    then
+        fact.setApplicable(false);
+        fact.setErrorMessage("Đơn hàng chưa đạt giá trị tối thiểu để áp dụng voucher");
+        fact.setDiscountAmount(BigDecimal.ZERO);
+        fact.setFinalAmount(fact.getOrderAmount());
+        System.out.println("ERROR: Đơn hàng chưa đạt giá trị tối thiểu: " + fact.getOrderAmount() + " < " + fact.getMinOrderAmount());
+    end
+
+// Rule 3: Tính giảm giá theo phần trăm
+rule "Calculate Percent Discount"
+    salience 10
+    when
+        fact: VoucherDiscountFact(
+            discountType == DiscountType.PERCENT,
+            discountValue != null,
+            discountValue.compareTo(BigDecimal.ZERO) > 0,
+            orderAmount != null,
+            orderAmount.compareTo(BigDecimal.ZERO) > 0,
+            applicable == false, // Chưa được đánh dấu là không áp dụng được (mặc định là false)
+            discountAmount == null,
+            errorMessage == null // Không có lỗi từ các rule validation trước
+        )
+        eval(fact.getStartDate() == null || fact.getEndDate() == null || 
+             (fact.getOrderDate() != null && 
+              !fact.getOrderDate().isBefore(fact.getStartDate()) && 
+              !fact.getOrderDate().isAfter(fact.getEndDate())))
+        eval(fact.getMinOrderAmount() == null || 
+             (fact.getOrderAmount() != null && fact.getOrderAmount().compareTo(fact.getMinOrderAmount()) >= 0))
+    then
+        BigDecimal discount = fact.getOrderAmount()
+            .multiply(fact.getDiscountValue())
+            .divide(new BigDecimal("100"), 2, java.math.RoundingMode.HALF_UP);
+        
+        // Áp dụng maxDiscountAmount nếu có
+        if (fact.getMaxDiscountAmount() != null && discount.compareTo(fact.getMaxDiscountAmount()) > 0) {
+            discount = fact.getMaxDiscountAmount();
+        }
+        
+        // Đảm bảo discount không vượt quá orderAmount
+        if (discount.compareTo(fact.getOrderAmount()) > 0) {
+            discount = fact.getOrderAmount();
+        }
+        
+        fact.setDiscountAmount(discount);
+        fact.setFinalAmount(fact.getOrderAmount().subtract(discount));
+        fact.setApplicable(true);
+        System.out.println("Percent discount calculated: " + discount + " from " + fact.getOrderAmount());
+    end
+
+// Rule 4: Tính giảm giá theo số tiền cố định
+rule "Calculate Fixed Amount Discount"
+    salience 10
+    when
+        fact: VoucherDiscountFact(
+            discountType == DiscountType.VALUE,
+            discountValue != null,
+            discountValue.compareTo(BigDecimal.ZERO) > 0,
+            orderAmount != null,
+            orderAmount.compareTo(BigDecimal.ZERO) > 0,
+            applicable == false, // Chưa được đánh dấu là không áp dụng được (mặc định là false)
+            discountAmount == null,
+            errorMessage == null // Không có lỗi từ các rule validation trước
+        )
+        eval(fact.getStartDate() == null || fact.getEndDate() == null || 
+             (fact.getOrderDate() != null && 
+              !fact.getOrderDate().isBefore(fact.getStartDate()) && 
+              !fact.getOrderDate().isAfter(fact.getEndDate())))
+        eval(fact.getMinOrderAmount() == null || 
+             (fact.getOrderAmount() != null && fact.getOrderAmount().compareTo(fact.getMinOrderAmount()) >= 0))
+    then
+        BigDecimal discount = fact.getDiscountValue();
+        
+        // Đảm bảo discount không vượt quá orderAmount
+        if (discount.compareTo(fact.getOrderAmount()) > 0) {
+            discount = fact.getOrderAmount();
+        }
+        
+        fact.setDiscountAmount(discount);
+        fact.setFinalAmount(fact.getOrderAmount().subtract(discount));
+        fact.setApplicable(true);
+        System.out.println("Fixed amount discount calculated: " + discount + " from " + fact.getOrderAmount());
+    end
+
+// Rule 5: Mặc định - không áp dụng được voucher
+rule "Default Voucher Not Applicable"
+    salience -100
+    when
+        fact: VoucherDiscountFact(
+            discountAmount == null
+        )
+    then
+        if (!fact.isApplicable() && fact.getErrorMessage() == null) {
+            fact.setErrorMessage("Voucher không thể áp dụng");
+        }
+        if (fact.getDiscountAmount() == null) {
+            fact.setDiscountAmount(BigDecimal.ZERO);
+        }
+        if (fact.getFinalAmount() == null && fact.getOrderAmount() != null) {
+            fact.setFinalAmount(fact.getOrderAmount());
+        }
+    end
+

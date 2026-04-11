@@ -1,0 +1,40 @@
+.admin-nav-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 20px;
+  background: transparent;
+  border: none;
+  color: #bdb7b8;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 200ms ease;
+  text-align: left;
+  width: 100%;
+  position: relative;
+}
+
+.admin-nav-item:hover {
+  background: rgba(255,255,255,0.05);
+  color: #fff;
+}
+
+.admin-nav-item--active {
+  background: rgba(232, 59, 65, 0.15);
+  color: #ffd159;
+  border-left: 3px solid #e83b41;
+}
+
+.admin-nav-item--active::before {
+  content: '';
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: #e83b41;
+}
+
+
+

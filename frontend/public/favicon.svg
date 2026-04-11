@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 36 36" fill="none">
+  <defs>
+    <linearGradient id="faviconGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#e83b41" stop-opacity="1" />
+      <stop offset="50%" stop-color="#ff5258" stop-opacity="1" />
+      <stop offset="100%" stop-color="#ff6b6b" stop-opacity="1" />
+    </linearGradient>
+    <filter id="faviconGlow">
+      <feGaussianBlur stdDeviation="1.5" result="coloredBlur"/>
+      <feMerge>
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  <circle cx="18" cy="18" r="17" fill="url(#faviconGradient)" filter="url(#faviconGlow)" opacity="0.9"/>
+  <circle cx="18" cy="18" r="14" fill="none" stroke="rgba(255,255,255,0.3)" stroke-width="1.5"/>
+  <circle cx="18" cy="18" r="10" fill="none" stroke="rgba(255,255,255,0.2)" stroke-width="1"/>
+  <rect x="8" y="8" width="20" height="20" rx="2" fill="none" stroke="rgba(255,255,255,0.4)" stroke-width="1.5"/>
+  <path d="M14 14L22 18L14 22V14Z" fill="rgba(255,255,255,0.95)"/>
+  <circle cx="10" cy="10" r="1.5" fill="rgba(255,255,255,0.6)"/>
+  <circle cx="26" cy="10" r="1.5" fill="rgba(255,255,255,0.6)"/>
+  <circle cx="10" cy="26" r="1.5" fill="rgba(255,255,255,0.6)"/>
+  <circle cx="26" cy="26" r="1.5" fill="rgba(255,255,255,0.6)"/>
+</svg>
+

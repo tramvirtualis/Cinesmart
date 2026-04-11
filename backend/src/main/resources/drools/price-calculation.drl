@@ -1,0 +1,54 @@
+package com.example.backend.drools;
+
+import com.example.backend.dtos.PriceCalculationFact;
+import java.time.LocalDateTime;
+import java.math.BigDecimal;
+
+// Rule 1: Tính giá cuối tuần - Thứ 7 (6) hoặc Chủ nhật (7) tăng 30%
+rule "Weekend Price Surcharge"
+    when
+        fact: PriceCalculationFact(
+            basePrice != null,
+            basePrice.compareTo(BigDecimal.ZERO) > 0,
+            showtimeDateTime != null
+        )
+        eval(fact.getShowtimeDateTime().getDayOfWeek().getValue() == 6 || 
+             fact.getShowtimeDateTime().getDayOfWeek().getValue() == 7)
+    then
+        BigDecimal weekendPrice = fact.getBasePrice().multiply(new BigDecimal("1.3"));
+        fact.setFinalPrice(weekendPrice);
+        fact.setCalculationReason("Áp dụng phụ thu cuối tuần 30% (thứ 7 hoặc chủ nhật)");
+        System.out.println("Weekend surcharge applied: " + fact.getBasePrice() + " -> " + weekendPrice);
+    end
+
+// Rule 2: Giá ngày thường - không tăng giá
+rule "Weekday Price No Surcharge"
+    when
+        fact: PriceCalculationFact(
+            basePrice != null,
+            basePrice.compareTo(BigDecimal.ZERO) > 0,
+            showtimeDateTime != null,
+            finalPrice == null
+        )
+        eval(fact.getShowtimeDateTime().getDayOfWeek().getValue() >= 1 && 
+             fact.getShowtimeDateTime().getDayOfWeek().getValue() <= 5)
+    then
+        fact.setFinalPrice(fact.getBasePrice());
+        fact.setCalculationReason("Giá ngày thường (không phụ thu)");
+        System.out.println("Weekday price (no surcharge): " + fact.getBasePrice());
+    end
+
+// Rule 3: Mặc định - nếu không có thời gian, dùng giá gốc
+rule "Default Price Calculation"
+    salience -100
+    when
+        fact: PriceCalculationFact(
+            basePrice != null,
+            finalPrice == null
+        )
+    then
+        fact.setFinalPrice(fact.getBasePrice());
+        fact.setCalculationReason("Giá gốc (không có thông tin thời gian)");
+        System.out.println("Default price: " + fact.getBasePrice());
+    end
+

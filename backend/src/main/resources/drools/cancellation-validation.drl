@@ -1,0 +1,82 @@
+package com.example.backend.drools;
+
+import com.example.backend.dtos.CancellationValidationFact;
+import com.example.backend.entities.enums.OrderStatus;
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
+
+// Rule 1: Order đã được hủy trước đó
+rule "Order Already Cancelled"
+    when
+        fact: CancellationValidationFact(
+            orderStatus == "CANCELLED"
+        )
+    then
+        fact.setCanCancel(false);
+        fact.setErrorMessage("Đơn hàng đã được hủy trước đó");
+        fact.setValidationResult("ALREADY_CANCELLED");
+        System.out.println("Rule: Order already cancelled");
+    end
+
+// Rule 2: Order chưa được thanh toán
+rule "Order Not Paid"
+    when
+        fact: CancellationValidationFact(
+            paymentDate == null
+        )
+    then
+        fact.setCanCancel(false);
+        fact.setErrorMessage("Đơn hàng chưa được thanh toán nên không thể hủy");
+        fact.setValidationResult("NOT_PAID");
+        System.out.println("Rule: Order not paid");
+    end
+
+// Rule 3: Suất chiếu đã bắt đầu hoặc đã kết thúc
+rule "Showtime Already Started"
+    when
+        fact: CancellationValidationFact(
+            earliestShowtime != null,
+            currentTime != null,
+            !earliestShowtime.isAfter(currentTime)
+        )
+    then
+        fact.setCanCancel(false);
+        fact.setErrorMessage("Suất chiếu đã bắt đầu hoặc đã kết thúc nên không thể hủy");
+        fact.setValidationResult("SHOWTIME_STARTED");
+        System.out.println("Rule: Showtime already started");
+    end
+
+// Rule 4: Vượt quá giới hạn hủy trong tháng (chỉ áp dụng cho customer, không áp dụng cho admin)
+rule "Exceed Monthly Cancellation Limit"
+    when
+        fact: CancellationValidationFact(
+            admin == false,
+            monthlyCancellationCount >= monthlyCancellationLimit
+        )
+    then
+        fact.setCanCancel(false);
+        fact.setErrorMessage("Bạn đã sử dụng hết " + fact.getMonthlyCancellationLimit() + " lượt hủy trong tháng này");
+        fact.setValidationResult("EXCEED_LIMIT");
+        System.out.println("Rule: Exceed monthly cancellation limit");
+    end
+
+// Rule 5: Validation thành công - cho phép hủy và tính refund
+rule "Cancellation Allowed"
+    salience -100
+    when
+        fact: CancellationValidationFact(
+            orderStatus != "CANCELLED",
+            paymentDate != null,
+            (earliestShowtime == null || earliestShowtime.isAfter(currentTime)),
+            (admin == true || monthlyCancellationCount < monthlyCancellationLimit),
+            errorMessage == null,
+            canCancel == false
+        )
+    then
+        fact.setCanCancel(true);
+        fact.setRefundAmount(fact.getTotalAmount() != null ? fact.getTotalAmount() : BigDecimal.ZERO);
+        fact.setValidationResult("VALID");
+        System.out.println("Rule: Cancellation allowed, refund amount: " + fact.getRefundAmount());
+    end
+

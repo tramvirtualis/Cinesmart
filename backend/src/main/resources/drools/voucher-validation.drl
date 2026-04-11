@@ -1,0 +1,89 @@
+package com.example.backend.drools;
+
+import com.example.backend.dtos.VoucherValidationFact;
+import com.example.backend.entities.enums.DiscountType;
+import java.time.LocalDateTime;
+import java.math.BigDecimal;
+
+// Rule 1: Kiểm tra ngày bắt đầu phải trước ngày kết thúc
+rule "Voucher Start Date Before End Date"
+    when
+        fact: VoucherValidationFact(
+            startDate != null,
+            endDate != null,
+            startDate.isAfter(endDate)
+        )
+    then
+        fact.setValid(false);
+        fact.setErrorMessage("Ngày bắt đầu phải trước ngày kết thúc");
+        System.out.println("ERROR: Ngày bắt đầu phải trước ngày kết thúc");
+    end
+
+// Rule 2: Kiểm tra giá trị giảm giá phần trăm không vượt quá 100%
+rule "Voucher Percent Discount Not Exceed 100"
+    when
+        fact: VoucherValidationFact(
+            discountType == DiscountType.PERCENT,
+            discountValue != null,
+            discountValue.compareTo(new BigDecimal("100")) > 0
+        )
+    then
+        fact.setValid(false);
+        fact.setErrorMessage("Giảm giá phần trăm không được vượt quá 100%");
+        System.out.println("ERROR: Giảm giá phần trăm không được vượt quá 100%");
+    end
+
+// Rule 3: Kiểm tra giá trị giảm giá phải dương
+rule "Voucher Discount Value Must Be Positive"
+    when
+        fact: VoucherValidationFact(
+            discountValue != null,
+            discountValue.compareTo(BigDecimal.ZERO) <= 0
+        )
+    then
+        fact.setValid(false);
+        fact.setErrorMessage("Giá trị giảm giá phải lớn hơn 0");
+        System.out.println("ERROR: Giá trị giảm giá phải lớn hơn 0");
+    end
+
+// Rule 4: Kiểm tra maxDiscountAmount phải dương nếu có
+rule "Voucher Max Discount Amount Must Be Positive"
+    when
+        fact: VoucherValidationFact(
+            maxDiscountAmount != null,
+            maxDiscountAmount.compareTo(BigDecimal.ZERO) < 0
+        )
+    then
+        fact.setValid(false);
+        fact.setErrorMessage("Số tiền giảm tối đa phải lớn hơn hoặc bằng 0");
+        System.out.println("ERROR: Số tiền giảm tối đa phải lớn hơn hoặc bằng 0");
+    end
+
+// Rule 5: Kiểm tra minOrderAmount phải dương nếu có
+rule "Voucher Min Order Amount Must Be Positive"
+    when
+        fact: VoucherValidationFact(
+            minOrderAmount != null,
+            minOrderAmount.compareTo(BigDecimal.ZERO) < 0
+        )
+    then
+        fact.setValid(false);
+        fact.setErrorMessage("Giá trị đơn hàng tối thiểu phải lớn hơn hoặc bằng 0");
+        System.out.println("ERROR: Giá trị đơn hàng tối thiểu phải lớn hơn hoặc bằng 0");
+    end
+
+// Rule 6: Mặc định - nếu không có rule nào trigger, coi như hợp lệ
+rule "Default Voucher Valid"
+    salience -100
+    when
+        fact: VoucherValidationFact(
+            valid == false,
+            errorMessage == null
+        )
+    then
+        if (fact.getErrorMessage() == null || fact.getErrorMessage().isEmpty()) {
+            fact.setValid(true);
+            System.out.println("Voucher validation passed");
+        }
+    end
+

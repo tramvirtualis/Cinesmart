@@ -1,0 +1,19 @@
+.admin-logo__icon {
+  flex-shrink: 0;
+  filter: drop-shadow(0 2px 8px rgba(232, 59, 65, 0.5));
+  transition: all 300ms ease;
+}
+
+.admin-logo__text {
+  font-size: 18px;
+  font-weight: 900;
+  letter-spacing: 0.03em;
+  background: linear-gradient(135deg, #ff5258 0%, #ff6b6b 50%, #ff7b7b 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  transition: all 300ms ease;
+}
+
+
+

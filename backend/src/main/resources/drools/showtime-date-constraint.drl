@@ -1,0 +1,34 @@
+package com.example.backend.drools;
+
+import com.example.backend.dtos.ShowtimeValidationFact;
+import java.time.LocalDate;
+
+// Rule 1: Kiểm tra ràng buộc ngày - chỉ validate showtimes cùng ngày
+rule "Same Date Constraint"
+    when
+        fact: ShowtimeValidationFact(
+            newDate != null,
+            existingDate != null,
+            !isSameDate()
+        )
+    then
+        // Nếu khác ngày, không cần kiểm tra xung đột thời gian
+        // Đánh dấu fact này không cần validate tiếp
+        fact.setValid(true);
+        System.out.println("Showtimes khác ngày - không cần kiểm tra xung đột");
+    end
+
+// Rule 2: Đảm bảo showtime mới có ngày hợp lệ
+rule "Valid Date Check"
+    when
+        fact: ShowtimeValidationFact(
+            newDate == null
+        )
+    then
+        fact.setValid(false);
+        fact.setErrorMessage("Ngày của lịch chiếu không được để trống");
+        System.out.println("ERROR: Ngày của lịch chiếu không được để trống");
+    end
+
+
+

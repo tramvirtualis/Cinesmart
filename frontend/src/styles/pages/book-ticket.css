@@ -1,0 +1,98 @@
+/* Book Ticket Page Styles */
+
+.book-ticket-seat-selection__summary {
+  margin-top: 32px;
+  padding: 24px;
+  background: linear-gradient(135deg, rgba(45, 38, 39, 0.95) 0%, rgba(26, 20, 21, 0.95) 100%);
+  border: 1px solid #4a3f41;
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.book-ticket-seat-selection__selected {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.book-ticket-seat-selection__selected > span {
+  font-size: 16px;
+  font-weight: 600;
+  color: #fff;
+  margin-bottom: 4px;
+  display: block;
+}
+
+.book-ticket-seat-selection__selected > div {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.book-ticket-seat-selection__total {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 0;
+  border-top: 1px solid #4a3f41;
+  border-bottom: 1px solid #4a3f41;
+}
+
+.book-ticket-seat-selection__total > span:first-child {
+  font-size: 18px;
+  font-weight: 600;
+  color: #fff;
+}
+
+.book-ticket-seat-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 8px 12px;
+  background: rgba(74, 63, 65, 0.6);
+  border: 1px solid #4a3f41;
+  border-radius: 8px;
+  font-size: 14px;
+  color: #fff;
+  gap: 8px;
+  white-space: nowrap;
+}
+
+.book-ticket-seat-selection__continue {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  margin-top: 8px;
+}
+
+.book-ticket-seat-selection__continue > button {
+  width: 100%;
+  max-width: 300px;
+  margin: 0 auto;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .book-ticket-seat-selection__summary {
+    padding: 20px;
+    gap: 16px;
+  }
+
+  .book-ticket-seat-selection__total {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .book-ticket-seat-selection__total > span:first-child {
+    font-size: 16px;
+  }
+
+  .book-ticket-seat-selection__continue > button {
+    max-width: 100%;
+  }
+}
+

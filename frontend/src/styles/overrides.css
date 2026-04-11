@@ -1,0 +1,68 @@
+/* Import CSS Variables */
+@import './utils/variables.css';
+
+/* Import Base Styles */
+@import './base.css';
+
+/* Import Components */
+@import './components/buttons.css';
+@import './components/forms.css';
+@import './components/badges.css';
+@import './components/chips.css';
+@import './components/footer.css';
+@import './components/global-mood.css';
+@import './components/header.css';
+@import './components/modal.css';
+@import './components/user-menu.css';
+@import './components/favorite-button.css';
+@import './components/movie-info-card.css';
+@import './components/movie-detail-section.css';
+@import './components/movie-synopsis.css';
+@import './components/schedule-date-button.css';
+@import './components/profile-badge.css';
+@import './components/profile-toggle.css';
+@import './components/profile-select.css';
+@import './components/profile-voucher-badge.css';
+@import './components/admin-logo.css';
+@import './components/admin-nav-item.css';
+@import './components/admin-stat-card.css';
+@import './components/admin-card.css';
+@import './components/admin-table.css';
+@import './components/price-table.css';
+@import './components/admin-top-movie-item.css';
+@import './components/movie-search.css';
+@import './components/movie-filter.css';
+@import './components/movie-table-elements.css';
+@import './components/movie-empty-state.css';
+@import './components/movie-modal.css';
+@import './components/movie-form.css';
+@import './components/voucher-panel.css';
+@import './components/order-card.css';
+@import './components/food-cinema-selector.css';
+@import './components/food-category-tab.css';
+@import './components/food-item-card.css';
+@import './components/food-cart-modal.css';
+@import './components/print-styles.css';
+@import './components/cards.css';
+@import './components/checkout-payment.css';
+@import './components/checkout-voucher.css';
+
+/* Import Pages */
+@import './pages/auth.css';
+@import './pages/homepage.css';
+@import './pages/cinema.css';
+@import './pages/movie-detail.css';
+@import './pages/profile.css';
+@import './pages/library.css';
+@import './pages/library-tabs.css';
+@import './pages/events.css';
+@import './pages/orders.css';
+@import './pages/food-drinks.css';
+@import './pages/booking-history.css';
+@import './pages/book-ticket.css';
+
+/* Import Admin */
+@import './admin/admin.css';
+@import './admin/price-management.css';
+@import './admin/movie-management.css';
+@import './admin/cinema-management.css';

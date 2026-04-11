@@ -1,0 +1,70 @@
+.chip-row { 
+  display: flex; 
+  gap: 8px; 
+  overflow: auto; 
+  padding-bottom: 6px; 
+}
+
+.chip-row--wrap {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding-bottom: 6px;
+  overflow: visible;
+}
+
+.chip { 
+  padding: 10px 12px; 
+  border-radius: 10px; 
+  border: 1px solid rgba(255,255,255,0.16); 
+  background: #1b1415; 
+  color: #e6e1e2; 
+  cursor: pointer; 
+  white-space: nowrap;
+  transition: all 250ms ease;
+  position: relative;
+  overflow: hidden;
+  flex-shrink: 0;
+  min-width: fit-content;
+}
+
+.chip::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  border-radius: 50%;
+  background: rgba(107, 42, 122, 0.3);
+  transform: translate(-50%, -50%);
+  transition: width 0.5s, height 0.5s;
+}
+
+.chip:hover {
+  transform: translateY(-2px);
+  border-color: rgba(107, 42, 122, 0.5);
+  box-shadow: 0 4px 12px rgba(107, 42, 122, 0.3);
+}
+
+.chip:hover::before {
+  width: 200px;
+  height: 200px;
+}
+
+.chip--active { 
+  background: linear-gradient(180deg, #e83b41 0%, var(--accent) 55%, #a10f14 100%); 
+  color: #fff; 
+  border-color: transparent;
+  transform: scale(1.05);
+  box-shadow: 0 4px 16px rgba(225,27,34,0.4);
+  animation: chipPulse 2s ease-in-out infinite;
+}
+
+@keyframes chipPulse {
+  0%, 100% { box-shadow: 0 4px 16px rgba(225,27,34,0.4); }
+  50% { box-shadow: 0 6px 24px rgba(225,27,34,0.6); }
+}
+
+
+

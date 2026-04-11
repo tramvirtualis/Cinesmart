@@ -1,0 +1,31 @@
+package com.example.backend.drools;
+
+import com.example.backend.dtos.ShowtimeValidationFact;
+import java.time.LocalDateTime;
+
+// Rule 3: Kiểm tra xung đột thời gian cho showtimes cùng ngày
+rule "Time Conflict Check - Same Day"
+    when
+        fact: ShowtimeValidationFact(
+            newDate != null,
+            existingDate != null,
+            isSameDate() == true,
+            newStartTime != null,
+            newEndTime != null,
+            existingStartTime != null,
+            existingEndTime != null,
+            // Kiểm tra xung đột: start1 < end2 && start2 < end1
+            newStartTime.isBefore(existingEndTime),
+            existingStartTime.isBefore(newEndTime)
+        )
+    then
+        fact.setValid(false);
+        fact.setErrorMessage("Khung giờ này trùng với lịch chiếu khác trong phòng cùng ngày");
+        System.out.println("ERROR: Xung đột thời gian - " + 
+            "New: " + fact.getNewStartTime() + " - " + fact.getNewEndTime() + 
+            " vs Existing: " + fact.getExistingStartTime() + " - " + fact.getExistingEndTime());
+    end
+
+// Note: Các validation cơ bản (thời gian hợp lệ, không trong quá khứ) 
+// được thực hiện trong Java code trước khi gọi Drools để tối ưu hiệu suất
+

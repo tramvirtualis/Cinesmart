@@ -1,0 +1,33 @@
+.field { 
+  display: grid; 
+  gap: 8px; 
+}
+
+.field__label { 
+  font-size: 12px; 
+  text-transform: uppercase; 
+  color: #c9c4c5; 
+  letter-spacing: 0.08em; 
+}
+
+.field__input {
+  width: 100%;
+  padding: 14px 14px;
+  border-radius: 10px;
+  background: #2d2627;
+  border: 1px solid #4a3f41;
+  color: #ffffff;
+  outline: none;
+}
+
+.field__input::placeholder { 
+  color: #c6bec0; 
+}
+
+.field__input:focus { 
+  border-color: #6b575a; 
+  box-shadow: 0 0 0 3px rgba(225,27,34,0.18); 
+}
+
+
+

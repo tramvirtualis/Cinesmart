@@ -1,0 +1,54 @@
+package com.example.backend.drools;
+
+import com.example.backend.dtos.ShowtimeValidationFact;
+import java.time.LocalDateTime;
+
+// Rule 5: Kiểm tra không được tạo lịch trong quá khứ
+rule "No Past Showtime"
+    when
+        fact: ShowtimeValidationFact(
+            newStartTime != null,
+            newStartTime.isBefore(LocalDateTime.now())
+        )
+    then
+        fact.setValid(false);
+        fact.setErrorMessage("Lịch chiếu không được đặt trong quá khứ");
+        System.out.println("ERROR: Lịch chiếu không được đặt trong quá khứ");
+    end
+
+// Rule 6: Mặc định - nếu không có rule nào trigger, coi như hợp lệ
+rule "Default Valid"
+    salience -100
+    when
+        fact: ShowtimeValidationFact(
+            valid == false,
+            errorMessage == null
+        )
+    then
+        // Chỉ set valid nếu chưa có error message
+        // Nếu đã có error từ rule khác, giữ nguyên
+        if (fact.getErrorMessage() == null || fact.getErrorMessage().isEmpty()) {
+            fact.setValid(true);
+        }
+    end
+
+// Rule 7: Đánh dấu hợp lệ nếu không có xung đột
+rule "No Conflict - Valid"
+    when
+        fact: ShowtimeValidationFact(
+            newDate != null,
+            existingDate != null,
+            isSameDate() == true,
+            newStartTime != null,
+            newEndTime != null,
+            existingStartTime != null,
+            existingEndTime != null,
+            // Không có xung đột: !(start1 < end2 && start2 < end1)
+            // Tức là: start1 >= end2 || start2 >= end1
+            (!newStartTime.isBefore(existingEndTime) || !existingStartTime.isBefore(newEndTime))
+        )
+    then
+        fact.setValid(true);
+        System.out.println("Showtime hợp lệ - không có xung đột thời gian");
+    end
+

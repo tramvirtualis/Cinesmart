@@ -1,0 +1,37 @@
+.admin-table {
+  overflow-x: auto;
+}
+
+.admin-table table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.admin-table thead {
+  background: rgba(20, 15, 16, 0.5);
+}
+
+.admin-table th {
+  padding: 12px;
+  text-align: left;
+  font-size: 12px;
+  text-transform: uppercase;
+  color: #bdb7b8;
+  letter-spacing: 0.05em;
+  font-weight: 700;
+  border-bottom: 1px solid rgba(255,255,255,0.1);
+}
+
+.admin-table td {
+  padding: 12px;
+  font-size: 14px;
+  color: #fff;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+}
+
+.admin-table tbody tr:hover {
+  background: rgba(255,255,255,0.03);
+}
+
+
+
