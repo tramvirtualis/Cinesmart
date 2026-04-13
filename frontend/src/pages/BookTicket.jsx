@@ -757,6 +757,42 @@ export default function BookTicket() {
     return colorMap[type] || '#4a90e2';
   };
 
+  const [is360ModalOpen, setIs360ModalOpen] = useState(false);
+  const iframe360Ref = useRef(null);
+
+  // Send seat data to 360 viewer
+  const sendSeatsData = (msgType = 'INIT_SEATS') => {
+    if (iframe360Ref.current && iframe360Ref.current.contentWindow && selectedRoom) {
+      // Create a combined set of booked and temporarily selected seats to treat as unavailable
+      const allUnavailableSeats = new Set([...bookedSeatIds, ...temporarilySelectedSeats]);
+      
+      iframe360Ref.current.contentWindow.postMessage({
+        type: msgType,
+        seats: selectedRoom.seats,
+        bookedSeats: Array.from(allUnavailableSeats),
+        selectedSeats: selectedSeats
+      }, '*');
+    }
+  };
+
+  // Sync 360 viewer when seat state changes
+  useEffect(() => {
+    if (is360ModalOpen) {
+      sendSeatsData('UPDATE_SEATS');
+    }
+  }, [selectedSeats, temporarilySelectedSeats, bookedSeatIds, is360ModalOpen, selectedRoom]);
+
+  // Listen to seat clicks from 360 viewer
+  useEffect(() => {
+    const handleMessage = (e) => {
+      if (e.data && e.data.type === 'SEAT_CLICKED' && e.data.seatId) {
+        handleSeatClick(e.data.seatId);
+      }
+    };
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
+  }, [bookedSeatIds, temporarilySelectedSeats, selectedSeats, selectedRoom]); // dependencies required since handleSeatClick uses them
+
   const handleSeatClick = (seatId) => {
     if (isUserBlocked) {
       setShowBlockedModal(true);
@@ -784,6 +820,36 @@ export default function BookTicket() {
     if (selectedShowtime && selectedShowtime.showtimeId) {
       websocketService.sendSeatSelection(selectedShowtime.showtimeId, seatId, action);
     }
+    
+    // Update 360 View if modal is open
+    if (is360ModalOpen && iframe360Ref.current && selectedRoom) {
+      const seat = selectedRoom.seats.find(s => s.seatId === seatId);
+      if (seat) {
+        // Simple approximation mapping
+        // Assume initial yaw = -1.55. Cols: 1 to cols. Center col is cols/2.
+        const centerCol = selectedRoom.cols / 2;
+        const colOffset = seat.column - centerCol;
+        // If left side (colOffset < 0), must look RIGHT (yaw increases).
+        // If right side (colOffset > 0), must look LEFT (yaw decreases).
+        const yaw = -1.55 - (colOffset * 0.08);
+
+        // Rows: A=0, B=1. Center row is rows/2.
+        let rowIndex = 0;
+        if (typeof seat.row === 'string') {
+          rowIndex = seat.row.charCodeAt(0) - 65;
+        } else if (typeof seat.row === 'number') {
+          rowIndex = seat.row; // Fallback
+        }
+        
+        const centerRow = selectedRoom.rows / 2;
+        const rowOffset = rowIndex - centerRow; 
+        // Row A (front) => rowOffset < 0 => must look UP (pitch decreases / becomes negative)
+        // Back row => rowOffset > 0 => must look DOWN (pitch increases / becomes positive)
+        const pitch = 0.02 + (rowOffset * 0.08);
+
+        iframe360Ref.current.contentWindow.postMessage({ yaw, pitch }, '*');
+      }
+    }
   };
 
   const renderSeatLayout = () => {
@@ -803,6 +869,31 @@ export default function BookTicket() {
       <div className="seat-layout">
         <div className="seat-layout__screen">
           <div className="seat-layout__screen-label">🎬 Màn hình 🎬</div>
+          <button 
+            type="button" 
+            style={{ 
+              marginTop: '16px', 
+              padding: '8px 16px', 
+              background: 'linear-gradient(90deg, #ffd159, #ff9800)',
+              color: '#000',
+              border: 'none',
+              borderRadius: '24px',
+              fontWeight: 'bold',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              boxShadow: '0 4px 6px rgba(0,0,0,0.3)',
+              transition: 'transform 0.2s',
+              margin: '0 auto'
+            }}
+            onClick={() => setIs360ModalOpen(true)}
+            onMouseOver={(e) => e.currentTarget.style.transform = 'scale(1.05)'}
+            onMouseOut={(e) => e.currentTarget.style.transform = 'scale(1)'}
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+            Xem phòng 360°
+          </button>
         </div>
 
         <div className="seat-layout__grid">
@@ -1452,6 +1543,39 @@ export default function BookTicket() {
           </div>
         </section>
       </main>
+
+      {/* 360 Modal */}
+      {is360ModalOpen && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 9999, backgroundColor: 'rgba(0,0,0,0.85)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(5px)' }}>
+          <div style={{ width: '90%', maxWidth: '1000px', height: '80vh', backgroundColor: '#000', borderRadius: '16px', overflow: 'hidden', position: 'relative', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.7)', border: '1px solid rgba(255,255,255,0.1)' }}>
+            <div style={{ padding: '16px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#1a1a1a', borderBottom: '1px solid #333' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ffd159" strokeWidth="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                <h3 style={{ color: '#fff', margin: 0, fontSize: '18px', fontWeight: 600 }}>Góc nhìn 360° {cinemaData?.name ? `- ${cinemaData.name}` : ''}</h3>
+              </div>
+              <button 
+                onClick={() => setIs360ModalOpen(false)}
+                style={{ background: 'transparent', border: 'none', color: '#999', cursor: 'pointer', padding: '4px', transition: 'color 0.2s' }}
+                onMouseOver={(e) => e.currentTarget.style.color = '#fff'}
+                onMouseOut={(e) => e.currentTarget.style.color = '#999'}
+              >
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+              </button>
+            </div>
+            <iframe 
+              ref={iframe360Ref}
+              src="/panorama/index.html" 
+              style={{ width: '100%', height: 'calc(100% - 61px)', border: 'none' }}
+              title="360 Viewer"
+              onLoad={() => sendSeatsData('INIT_SEATS')}
+            />
+            <div style={{ position: 'absolute', bottom: '24px', left: '50%', transform: 'translateX(-50%)', backgroundColor: 'rgba(0,0,0,0.6)', padding: '8px 20px', borderRadius: '24px', color: '#fff', fontSize: '14px', pointerEvents: 'none', display: 'flex', alignItems: 'center', gap: '8px', backdropFilter: 'blur(4px)', border: '1px solid rgba(255,255,255,0.1)' }}>
+              <span style={{ display: 'inline-block', width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#4caf50' }}></span>
+              Giữ Modal này rồi chọn ghế trên sơ đồ để tính toán góc nhìn mô phỏng
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Age Confirmation Modal */}
       <AgeConfirmationModal
