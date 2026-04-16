@@ -61,6 +61,8 @@ public class OrderService {
     private final com.example.backend.repositories.CustomerRepository customerRepository;
     @Lazy
     private final NotificationService notificationService; // Dùng @Lazy để tránh circular dependency
+    @Lazy
+    private final LoyaltyService loyaltyService;
 
     // ==================== Methods from HEAD (for getting orders)
     // ====================
@@ -71,7 +73,8 @@ public class OrderService {
         System.out.println("Found " + orders.size() + " total orders for user " + userId);
         LocalDateTime now = LocalDateTime.now(DEFAULT_ZONE);
         int cancellationsUsed = (int) getMonthlyCancellationCount(userId);
-        int cancellationRemaining = Math.max(0, MONTHLY_CANCELLATION_LIMIT - cancellationsUsed);
+        int monthlyLimit = getMonthlyCancellationLimitByUserId(userId);
+        int cancellationRemaining = Math.max(0, monthlyLimit - cancellationsUsed);
 
         // Self-healing: Check MoMo status for pending orders
         for (Order order : orders) {
@@ -122,7 +125,7 @@ public class OrderService {
                 })
                 .map(order -> {
                     OrderResponseDTO dto = mapToDTO(order);
-                    dto.setMonthlyCancellationLimit(MONTHLY_CANCELLATION_LIMIT);
+                    dto.setMonthlyCancellationLimit(monthlyLimit);
                     dto.setMonthlyCancellationUsed(cancellationsUsed);
                     dto.setMonthlyCancellationRemaining(Math.max(0, cancellationRemaining));
                     dto.setCancellable(cancellationRemaining > 0 && canCancel(order, now));
@@ -301,6 +304,7 @@ public class OrderService {
 
         LocalDateTime now = LocalDateTime.now(DEFAULT_ZONE);
         long cancellationsThisMonth = getMonthlyCancellationCount(userId);
+        int monthlyLimit = getMonthlyCancellationLimitByUserId(userId);
         
         // Get earliest showtime for validation
         LocalDateTime earliestShowtime = null;
@@ -323,7 +327,7 @@ public class OrderService {
                 .orderStatus(order.getStatus() != null ? order.getStatus().name() : null)
                 .totalAmount(order.getTotalAmount())
                 .monthlyCancellationCount(cancellationsThisMonth)
-                .monthlyCancellationLimit(MONTHLY_CANCELLATION_LIMIT)
+                .monthlyCancellationLimit(monthlyLimit)
                 .admin(false)
                 .build();
 
@@ -428,7 +432,7 @@ public class OrderService {
                 .refundAmount(refundAmount)
                 .cancelledAt(order.getCancelledAt())
                 .walletBalance(transaction.getBalanceAfter())
-                .monthlyCancellationLimit(MONTHLY_CANCELLATION_LIMIT)
+                .monthlyCancellationLimit(monthlyLimit)
                 .monthlyCancellationUsed(used)
                 .build();
     }
@@ -565,6 +569,12 @@ public class OrderService {
     @Transactional(readOnly = true)
     public int getMonthlyCancellationUsed(Long userId) {
         return (int) getMonthlyCancellationCount(userId);
+    }
+
+    public int getMonthlyCancellationLimitByUserId(Long userId) {
+        return customerRepository.findById(userId)
+                .map(customer -> loyaltyService.getCancellationLimit(customer.getTier()))
+                .orElse(MONTHLY_CANCELLATION_LIMIT);
     }
 
     public int getMonthlyCancellationLimit() {

@@ -5,6 +5,7 @@ import com.example.backend.dtos.UpdateVoucherDTO;
 import com.example.backend.dtos.VoucherResponseDTO;
 import com.example.backend.entities.enums.VoucherScope;
 import com.example.backend.services.VoucherService;
+import com.example.backend.repositories.CustomerRepository;
 import com.example.backend.utils.JwtUtils;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
@@ -29,6 +30,7 @@ public class VoucherController {
     
     private final VoucherService voucherService;
     private final JwtUtils jwtUtils;
+    private final CustomerRepository customerRepository;
     
     // ============ ADMIN ENDPOINTS ============
     
@@ -173,9 +175,26 @@ public class VoucherController {
     // ============ PUBLIC ENDPOINTS ============
     
     @GetMapping("/api/public/vouchers")
-    public ResponseEntity<?> getPublicVouchers() {
+    public ResponseEntity<?> getPublicVouchers(HttpServletRequest request) {
         try {
-            List<VoucherResponseDTO> vouchers = voucherService.getVouchersByScope(VoucherScope.PUBLIC);
+            List<VoucherResponseDTO> vouchers = new java.util.ArrayList<>(voucherService.getVouchersByScope(VoucherScope.PUBLIC));
+            
+            // Check if user is logged in
+            String username = getUsernameFromRequest(request);
+            if (username != null) {
+                customerRepository.findByUsername(username).ifPresent(customer -> {
+                    if (customer.getTier() != null && !customer.getTier().name().equals("MEMBER")) {
+                        try {
+                            VoucherScope tierScope = VoucherScope.valueOf(customer.getTier().name());
+                            List<VoucherResponseDTO> tierVouchers = voucherService.getVouchersByScope(tierScope);
+                            vouchers.addAll(tierVouchers);
+                        } catch (Exception e) {
+                            // ignore mapping error
+                        }
+                    }
+                });
+            }
+            
             return ResponseEntity.ok(vouchers);
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();

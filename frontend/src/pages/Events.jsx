@@ -24,10 +24,10 @@ const getPublicVouchers = async () => {
         startDate: v.startDate ? v.startDate.split('T')[0] : '',
         endDate: v.endDate ? v.endDate.split('T')[0] : '',
         isPublic: v.scope === 'PUBLIC',
+        scope: v.scope,
         image: v.image || '',
       }));
-      // All vouchers from public endpoint are already PUBLIC, but filter just in case
-      return mappedVouchers.filter(v => v.isPublic);
+      return mappedVouchers;
     }
   } catch (e) {
     console.error('Failed to load vouchers from API', e);
@@ -287,9 +287,14 @@ export default function Events() {
               
               return (
                 <article key={voucher.voucherId} className="voucher-panel">
-                  <div className="voucher-panel__media">
+                  <div className="voucher-panel__media" style={{ position: 'relative' }}>
                     <img src={voucher.image} alt={voucher.name} />
                     <span className="voucher-panel__badge">{formatDiscountBadge(voucher)}</span>
+                    {voucher.scope !== 'PUBLIC' && voucher.scope !== 'PRIVATE' && (
+                      <span className="absolute top-3 left-3 bg-gradient-to-r from-yellow-500 to-yellow-600 text-white text-xs font-bold px-3 py-1 rounded-lg shadow border border-yellow-300/30">
+                        Hạng {voucher.scope === 'SILVER' ? 'Bạc' : voucher.scope === 'GOLD' ? 'Vàng' : voucher.scope === 'PLATINUM' ? 'Bạch Kim' : voucher.scope}
+                      </span>
+                    )}
                   </div>
 
                   <div className="voucher-panel__content">

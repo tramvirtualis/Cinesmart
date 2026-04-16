@@ -160,6 +160,8 @@ export default function Orders() {
   // Filter orders by status
   const filteredOrders = statusFilter === 'all' 
     ? orders 
+    : statusFilter === 'PAID'
+    ? orders.filter(order => order.status !== 'CANCELLED' && order.status !== 'PENDING')
     : orders.filter(order => order.status === statusFilter);
 
   // Reset to page 1 when filter changes
@@ -321,7 +323,7 @@ export default function Orders() {
                     transition: 'all 0.2s ease'
                   }}
                 >
-                  Đã thanh toán ({orders.filter(o => o.status === 'PAID').length})
+                  Đã thanh toán ({orders.filter(o => o.status !== 'CANCELLED' && o.status !== 'PENDING').length})
                 </button>
                 <button
                   onClick={() => setStatusFilter('CANCELLED')}

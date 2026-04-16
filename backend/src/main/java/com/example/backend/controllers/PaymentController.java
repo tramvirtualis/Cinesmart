@@ -22,6 +22,7 @@ import com.example.backend.services.MomoService;
 import com.example.backend.services.ZaloPayService;
 import com.example.backend.services.NotificationService;
 import com.example.backend.services.EmailService;
+import com.example.backend.services.LoyaltyService;
 import com.example.backend.services.WalletService;
 import com.example.backend.services.WalletPinService;
 import com.example.backend.dtos.VerifyPinRequestDTO;
@@ -69,6 +70,7 @@ public class PaymentController {
     private final ZaloPayService zaloPayService;
     private final OrderCreationService orderCreationService;
     private final OrderService orderService;
+    private final LoyaltyService loyaltyService;
     private final NotificationService notificationService;
     private final EmailService emailService;
     private final ObjectMapper objectMapper = new ObjectMapper();
@@ -508,6 +510,15 @@ public class PaymentController {
                             if (needUpdate) {
                                 orderService.save(order);
                                 System.out.println("Updated transaction info for Order ID: " + order.getOrderId());
+                                
+                                // Nếu thành công, update loyalty tier và cashback
+                                if (!alreadyProcessed && !Boolean.TRUE.equals(order.getIsTopUp())) {
+                                    try {
+                                        loyaltyService.updateTierAndProvideCashback(order.getUser().getUserId(), order);
+                                    } catch (Exception e) {
+                                        System.err.println("LoyaltyService error: " + e.getMessage());
+                                    }
+                                }
                             }
                             
                             // Gửi thông báo đặt hàng thành công (chỉ gửi nếu callback lần đầu)
@@ -632,6 +643,15 @@ public class PaymentController {
                         
                         orderService.save(order);
                         
+                        // Update loyalty tier and provision cashback (cho don hang khong phai nap tien_
+                        if (!Boolean.TRUE.equals(order.getIsTopUp())) {
+                            try {
+                                loyaltyService.updateTierAndProvideCashback(order.getUser().getUserId(), order);
+                            } catch (Exception e) {
+                                System.err.println("LoyaltyService error: " + e.getMessage());
+                            }
+                        }
+
                         // Nếu là order nạp tiền, credit vào wallet
                         if (Boolean.TRUE.equals(order.getIsTopUp())) {
                             try {
@@ -1086,7 +1106,14 @@ public class PaymentController {
                 } else {
                     System.out.println("MoMo IPN - Order ID: " + order.getOrderId() + " is NOT a top-up order (isTopUp: " + order.getIsTopUp() + ")");
                     // Xóa voucher khỏi danh sách của user khi thanh toán thành công (chỉ cho order thường)
-                removeVoucherFromUser(order);
+                    removeVoucherFromUser(order);
+                    
+                    // Update loyalty tier and provision cashback (cho don hang khong phai nap tien_
+                    try {
+                        loyaltyService.updateTierAndProvideCashback(order.getUser().getUserId(), order);
+                    } catch (Exception e) {
+                        System.err.println("LoyaltyService error: " + e.getMessage());
+                    }
                 }
                 
                 try {
@@ -1209,6 +1236,13 @@ public class PaymentController {
                             } else {
                                 // Order thường - xử lý voucher và gửi thông báo
                                 removeVoucherFromUser(fullOrder);
+                                
+                                // Update loyalty tier and provision cashback (cho don hang khong phai nap tien_
+                                try {
+                                    loyaltyService.updateTierAndProvideCashback(fullOrder.getUser().getUserId(), fullOrder);
+                                } catch (Exception e) {
+                                    System.err.println("LoyaltyService error: " + e.getMessage());
+                                }
                                 
                                 try {
                                     String totalAmountStr = fullOrder.getTotalAmount()
@@ -1637,6 +1671,15 @@ public class PaymentController {
                 order.setVnpTransactionStatus("WALLET_SUCCESS");
                 order = orderService.save(order);
                 log.info("Order {} marked as PAID successfully", order.getOrderId());
+                
+                // Update loyalty tier and provision cashback
+                if (!Boolean.TRUE.equals(order.getIsTopUp())) {
+                    try {
+                        loyaltyService.updateTierAndProvideCashback(finalUser.getUserId(), order);
+                    } catch (Exception e) {
+                        log.error("LoyaltyService error: {}", e.getMessage());
+                    }
+                }
             } catch (Exception e) {
                 log.error("Error marking order {} as PAID: {}", order.getOrderId(), e.getMessage(), e);
                 throw e; // Re-throw để được catch ở outer catch block và refund
@@ -1873,6 +1916,13 @@ public class PaymentController {
                         System.out.println("MoMo Status Check - NOT a top-up order, processing as regular order");
                         // Xóa voucher khỏi danh sách của user khi thanh toán thành công (chỉ cho order thường)
                         removeVoucherFromUser(fullOrder);
+                        
+                        // Update loyalty tier and provision cashback
+                        try {
+                            loyaltyService.updateTierAndProvideCashback(fullOrder.getUser().getUserId(), fullOrder);
+                        } catch (Exception e) {
+                            System.err.println("LoyaltyService error: " + e.getMessage());
+                        }
                         
                         // Send Notif & Email cho order thường
                         try {

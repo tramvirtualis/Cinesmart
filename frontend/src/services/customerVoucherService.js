@@ -84,6 +84,7 @@ const mapVoucherFromBackend = (voucher) => {
     expiryDate: voucher.endDate ? voucher.endDate.split('T')[0] : '',
     startDate: voucher.startDate ? voucher.startDate.split('T')[0] : '',
     status: status,
+    scope: voucher.scope,
     image: voucher.image || '',
     minOrder: voucher.minOrderAmount ? Number(voucher.minOrderAmount) : 0,
     maxDiscount: voucher.maxDiscountAmount ? Number(voucher.maxDiscountAmount) : 0,

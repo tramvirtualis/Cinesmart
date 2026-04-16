@@ -168,7 +168,7 @@ export const voucherService = {
         minOrderAmount: voucherData.minOrder || null,
         startDate: voucherData.startDate ? `${voucherData.startDate}T00:00:00` : null,
         endDate: voucherData.endDate ? `${voucherData.endDate}T23:59:59` : null,
-        scope: mapVoucherScopeToBackend(voucherData.isPublic),
+        scope: voucherData.scope || mapVoucherScopeToBackend(voucherData.isPublic),
         image: voucherData.image || null,
       };
 
@@ -208,7 +208,8 @@ export const voucherService = {
       if (voucherData.minOrder !== undefined) backendData.minOrderAmount = voucherData.minOrder || null;
       if (voucherData.startDate !== undefined) backendData.startDate = voucherData.startDate ? `${voucherData.startDate}T00:00:00` : null;
       if (voucherData.endDate !== undefined) backendData.endDate = voucherData.endDate ? `${voucherData.endDate}T23:59:59` : null;
-      if (voucherData.isPublic !== undefined) backendData.scope = mapVoucherScopeToBackend(voucherData.isPublic);
+      if (voucherData.scope !== undefined) backendData.scope = voucherData.scope;
+      else if (voucherData.isPublic !== undefined) backendData.scope = mapVoucherScopeToBackend(voucherData.isPublic);
       if (voucherData.image !== undefined) backendData.image = voucherData.image || null;
 
       const response = await axiosInstance.put(`/admin/vouchers/${voucherId}`, backendData);

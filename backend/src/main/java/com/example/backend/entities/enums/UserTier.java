@@ -1,9 +1,8 @@
 package com.example.backend.entities.enums;
 
-public enum VoucherScope {
-    PUBLIC,
-    PRIVATE,
+public enum UserTier {
+    MEMBER,
     SILVER,
     GOLD,
-    PLATINUM;
+    PLATINUM
 }

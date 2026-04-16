@@ -8,8 +8,10 @@ import darkKnightRises from '../assets/images/the-dark-knight-rises.jpg';
 import driveMyCar from '../assets/images/drive-my-car.jpg';
 import { updateCustomerProfile, uploadAvatar, getExpenseStatistics, getCurrentProfile, updateOldOrders, checkPassword, updatePassword, createPassword } from '../services/customer.js';
 import { customerVoucherService } from '../services/customerVoucherService';
+import { voucherService } from '../services/voucherService';
 import { walletService, walletPinService } from '../services/walletService';
 import { paymentService } from '../services/paymentService';
+import TierBenefitsModal from '../components/TierBenefitsModal.jsx';
 
 const PROVINCES = [
   'Hồ Chí Minh', 'Hà Nội', 'Đà Nẵng', 'Cần Thơ', 'Hải Phòng', 'An Giang', 'Bà Rịa - Vũng Tàu',
@@ -40,8 +42,9 @@ const initialUserData = {
   totalBookings: storedUser.totalBookings || 0,
   totalSpent: storedUser.totalSpent || 0,
   favoriteMovies: storedUser.favoriteMovies || 0,
+  tier: storedUser.tier || "MEMBER",
+  totalSpendLast12Months: storedUser.totalSpendLast12Months || 0,
 };
-
 // Vouchers sẽ được load từ API
 
 const favoriteMovies = [
@@ -58,9 +61,12 @@ export default function Profile() {
   const [userData, setUserData] = useState(initialUserData);
   const [activeTab, setActiveTab] = useState('overview');
   const [isEditing, setIsEditing] = useState(false);
+  const [isBenefitsModalOpen, setIsBenefitsModalOpen] = useState(false);
   const [message, setMessage] = useState({ type: '', text: '' });
   const [vouchers, setVouchers] = useState([]);
+  const [publicVouchers, setPublicVouchers] = useState([]);
   const [loadingVouchers, setLoadingVouchers] = useState(false);
+  const [savingVoucherId, setSavingVoucherId] = useState(null);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [expenseStats, setExpenseStats] = useState({
     totalSpent: 0,
@@ -123,6 +129,8 @@ export default function Profile() {
             totalBookings: storedUser.totalBookings || 0,
             totalSpent: storedUser.totalSpent || 0,
             favoriteMovies: storedUser.favoriteMovies || 0,
+            tier: storedUser.tier || "MEMBER",
+            totalSpendLast12Months: storedUser.totalSpendLast12Months || 0,
           });
         }
         return;
@@ -147,6 +155,8 @@ export default function Profile() {
           totalBookings: storedUser.totalBookings || 0,
           totalSpent: storedUser.totalSpent || 0,
           favoriteMovies: storedUser.favoriteMovies || 0,
+          tier: profile.tier || "MEMBER",
+          totalSpendLast12Months: profile.totalSpendLast12Months || 0,
         });
 
         // Update localStorage với avatar mới
@@ -158,6 +168,8 @@ export default function Profile() {
         if (profile.address) {
           storedUser.address = profile.address;
         }
+        storedUser.tier = profile.tier;
+        storedUser.totalSpendLast12Months = profile.totalSpendLast12Months;
         localStorage.setItem('user', JSON.stringify(storedUser));
         
         // Dispatch event để Header cập nhật avatar
@@ -181,6 +193,8 @@ export default function Profile() {
             totalBookings: storedUser.totalBookings || 0,
             totalSpent: storedUser.totalSpent || 0,
             favoriteMovies: storedUser.favoriteMovies || 0,
+            tier: storedUser.tier || "MEMBER",
+            totalSpendLast12Months: storedUser.totalSpendLast12Months || 0,
           });
         }
       }
@@ -192,7 +206,7 @@ export default function Profile() {
   // Read tab from URL query parameter on mount
   useEffect(() => {
     const tabFromUrl = searchParams.get('tab');
-    if (tabFromUrl && ['overview', 'vouchers', 'expenses', 'password', 'wallet', 'pin'].includes(tabFromUrl)) {
+    if (tabFromUrl && ['overview', 'vouchers', 'expenses', 'password', 'wallet', 'pin', 'loyalty'].includes(tabFromUrl)) {
       setActiveTab(tabFromUrl);
     } else {
       // If no tab in URL, default to overview (but don't add ?tab=overview to URL)
@@ -235,20 +249,32 @@ export default function Profile() {
       const token = localStorage.getItem('jwt');
       if (!token) {
         setVouchers([]);
+        setPublicVouchers([]);
         return;
       }
 
       setLoadingVouchers(true);
       try {
-        const result = await customerVoucherService.getUserVouchers();
-        if (result.success) {
-          setVouchers(result.data || []);
+        const [savedResult, publicResult] = await Promise.all([
+          customerVoucherService.getUserVouchers(),
+          voucherService.getPublicVouchers()
+        ]);
+        
+        if (savedResult.success) {
+          setVouchers(savedResult.data || []);
         } else {
           setVouchers([]);
+        }
+        
+        if (publicResult.success) {
+          setPublicVouchers(publicResult.data || []);
+        } else {
+          setPublicVouchers([]);
         }
       } catch (error) {
         console.error('Error loading vouchers:', error);
         setVouchers([]);
+        setPublicVouchers([]);
       } finally {
         setLoadingVouchers(false);
       }
@@ -256,6 +282,24 @@ export default function Profile() {
 
     loadVouchers();
   }, []);
+  
+  const handleSaveTierVoucher = async (voucherId) => {
+    setSavingVoucherId(voucherId);
+    try {
+      await customerVoucherService.saveVoucher(voucherId);
+      // Lấy lại danh sách voucher đã lưu sau khi lưu thành công
+      const savedResult = await customerVoucherService.getUserVouchers();
+      if (savedResult.success) {
+        setVouchers(savedResult.data || []);
+      }
+      showMessage('success', 'Đã lưu ưu đãi thành công!');
+    } catch (error) {
+      let errorMessage = error.response?.data?.message || error.message || 'Không thể lưu ưu đãi';
+      showMessage('error', errorMessage);
+    } finally {
+      setSavingVoucherId(null);
+    }
+  };
 
 
   // Load expense statistics when expenses tab is active
@@ -727,6 +771,8 @@ export default function Profile() {
         totalBookings: userData.totalBookings || 0,
         totalSpent: userData.totalSpent || 0,
         favoriteMovies: userData.favoriteMovies || 0,
+        tier: userData.tier,
+        totalSpendLast12Months: userData.totalSpendLast12Months,
       };
   
       setUserData(updatedUserData);
@@ -882,6 +928,12 @@ export default function Profile() {
               >
                 Cập nhật mật khẩu
               </button>
+              <button
+                className={`profile-tab ${activeTab === 'loyalty' ? 'profile-tab--active' : ''}`}
+                onClick={() => handleTabChange('loyalty')}
+              >
+                Khách hàng thân thiết
+              </button>
             </div>
 
             {/* Tab Content */}
@@ -924,6 +976,140 @@ export default function Profile() {
                     </button>
                   </div>
                   
+                </div>
+              )}
+
+              {activeTab === 'loyalty' && (
+                <div>
+                  {/* Loyalty Card Matching Image UI */}
+                  {(() => {
+                    const tierName = userData.tier === 'PLATINUM' ? 'BẠCH KIM' : userData.tier === 'GOLD' ? 'VÀNG' : userData.tier === 'SILVER' ? 'BẠC' : 'THÀNH VIÊN';
+                    const spent = userData.totalSpendLast12Months || 0;
+                    
+                    const thresholds = { 'MEMBER': 1500000, 'SILVER': 2500000, 'GOLD': 4500000 };
+                    const nextTiers = { 'MEMBER': 'Bạc', 'SILVER': 'Vàng', 'GOLD': 'Bạch Kim' };
+                    const threshold = thresholds[userData.tier];
+                    const currentBoundary = thresholds[Object.keys(thresholds)[Object.keys(thresholds).indexOf(userData.tier) - 1]] || 0;
+                    
+                    let bgGradient = 'from-gray-700 to-gray-900 border-gray-500/30';
+                    let iconColor = 'text-gray-400';
+                    let progress = 0;
+                    
+                    if (userData.tier === 'PLATINUM') {
+                      bgGradient = 'from-[#171a2a] to-[#0c1e36] border-blue-500/30';
+                      iconColor = 'text-blue-400';
+                      progress = 100;
+                    } else if (userData.tier === 'GOLD') {
+                      bgGradient = 'from-[#3a2c0c] to-[#261c02] border-yellow-500/30';
+                      iconColor = 'text-yellow-400';
+                      progress = Math.max(0, Math.min(100, ((spent - currentBoundary) / (threshold - currentBoundary)) * 100));
+                    } else if (userData.tier === 'SILVER') {
+                      bgGradient = 'from-[#2c2d30] to-[#141517] border-gray-400/30';
+                      iconColor = 'text-gray-300';
+                      progress = Math.max(0, Math.min(100, ((spent - currentBoundary) / (threshold - currentBoundary)) * 100));
+                    } else {
+                      progress = Math.max(0, Math.min(100, (spent / threshold) * 100));
+                    }
+
+                    return (
+                      <div className={`bg-gradient-to-r ${bgGradient} text-white p-6 md:p-8 rounded-2xl relative shadow-2xl border overflow-hidden mb-10`}>
+                         <div className="absolute top-0 left-0 w-full h-full bg-[url('https://www.transparenttextures.com/patterns/stardust.png')] opacity-20 mix-blend-overlay"></div>
+                         
+                         <div className="flex justify-between items-start mb-8 text-white relative z-10">
+                            <div>
+                               <h1 className="text-4xl font-extrabold uppercase tracking-widest text-[#f8f9fa] drop-shadow-md mb-1">{tierName}</h1>
+                               <p className="text-[#c9c4c5] mt-1 text-sm font-medium">{userData.name}</p>
+                            </div>
+                            <button 
+                               onClick={() => setIsBenefitsModalOpen(true)}
+                               className="flex items-center gap-2 bg-white/10 hover:bg-white/20 transition-all px-4 py-2 rounded-full text-sm font-semibold border border-white/20 backdrop-blur-sm"
+                            >
+                               Xem quyền lợi 
+                               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7"></path>
+                               </svg>
+                            </button>
+                         </div>
+
+                         <div className="relative z-10">
+                           <div className="flex justify-between items-end mb-1">
+                              <div>
+                                <div className="text-xs font-semibold text-[#c9c4c5] mb-1">Chi tiêu 12 tháng</div>
+                                <div className="text-2xl font-bold">{new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 }).format(spent)}</div>
+                              </div>
+                              <div className="text-sm font-medium text-[#c9c4c5] flex flex-col items-end gap-1">
+                                {userData.tier === 'PLATINUM' ? (
+                                  <span className="flex items-center gap-1">Hạng cao nhất <span className="text-lg">👑</span></span>
+                                ) : (
+                                  <>
+                                    <span className="flex items-center gap-1">Hạng tiếp theo: {nextTiers[userData.tier]}</span>
+                                    {threshold > spent && <span className="text-xs opacity-75">Cần thêm {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 }).format(threshold - spent)}</span>}
+                                  </>
+                                )}
+                              </div>
+                           </div>
+                           
+                           <div className="h-2 w-full bg-white/20 rounded-full overflow-hidden mt-3 shadow-inner">
+                              <div className="h-full bg-white rounded-full transition-all duration-1000 ease-out shadow-[0_0_8px_rgba(255,255,255,0.8)]" style={{ width: `${progress}%` }}></div>
+                           </div>
+                         </div>
+                      </div>
+                    );
+                  })()}
+
+                  <div className="flex items-center gap-2 mb-6 text-white mt-10">
+                    <svg className="w-6 h-6 text-[#ffd159]" fill="currentColor" viewBox="0 0 20 20">
+                      <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"></path>
+                    </svg>
+                    <h3 className="font-bold text-xl drop-shadow-sm">Ưu đãi dành riêng cho Khách hàng {userData.tier === 'PLATINUM' ? 'Bạch Kim' : userData.tier === 'GOLD' ? 'Vàng' : userData.tier === 'SILVER' ? 'Bạc' : 'Thành viên'}</h3>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {loadingVouchers ? (
+                      <div className="col-span-full py-10 text-center text-[#c9c4c5]">Đang tải ưu đãi...</div>
+                    ) : (
+                      publicVouchers
+                        .filter(v => v.scope === userData.tier)
+                        .map(voucher => {
+                          const isSaved = vouchers.some(sv => sv.voucherId === voucher.voucherId || sv.id === voucher.voucherId);
+                          const isSaving = savingVoucherId === voucher.voucherId;
+                          
+                          return (
+                          <div key={voucher.voucherId || voucher.id} className="bg-[#1f191a] border border-[#4a3f41] rounded-xl overflow-hidden hover:border-blue-500/50 transition-all flex shadow-lg hover:shadow-blue-500/10">
+                            <div className={`w-1/3 flex flex-col justify-center items-center border-r border-[#4a3f41] relative ${voucher.image ? 'p-0 overflow-hidden' : 'bg-[#0c1825] p-4'}`}>
+                               <div className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-1/2 w-4 h-4 bg-[#1a1415] rounded-full border-r border-[#4a3f41] z-10"></div>
+                               {voucher.image ? (
+                                   <img src={voucher.image} alt={voucher.name || voucher.title || 'Voucher'} className="w-full h-full object-cover" />
+                               ) : (
+                                   <h4 className="font-extrabold text-center text-blue-400 text-sm tracking-wide leading-tight mt-1">CINESMART<br/>{userData.tier === 'PLATINUM' ? 'BẠCH KIM' : userData.tier === 'GOLD' ? 'VÀNG' : userData.tier === 'SILVER' ? 'BẠC' : ''}</h4>
+                               )}
+                            </div>
+                            <div className="p-4 flex-1 flex justify-between items-center bg-gradient-to-r from-[#1f191a] to-[#2d2627] relative">
+                               <div className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-1/2 w-4 h-4 bg-[#1a1415] rounded-full border-l border-[#4a3f41]"></div>
+                               <div className="pr-2 flex-1">
+                                  <h4 className="font-bold text-white mb-1.5 text-base leading-tight line-clamp-2">{voucher.title || voucher.name}</h4>
+                                  <p className="text-[#c9c4c5] text-xs mb-1">Số lượng: 1</p>
+                                  {voucher.endDate && (
+                                    <p className="text-[#6b6264] text-xs font-medium">HSD: {new Date(voucher.endDate).toLocaleDateString('vi-VN')}</p>
+                                  )}
+                               </div>
+                               <button 
+                                 className={`px-4 py-2 font-semibold rounded-lg text-sm transition-all ml-2 flex-shrink-0 ${isSaved ? 'bg-[#4a3f41] text-[#c9c4c5] cursor-not-allowed' : 'bg-[#e83b41] hover:bg-[#ff5258] text-white'}`}
+                                 onClick={() => !isSaved && !isSaving && handleSaveTierVoucher(voucher.voucherId)}
+                                 disabled={isSaved || isSaving}
+                               >
+                                 {isSaving ? 'Đang lưu...' : isSaved ? 'Đã lưu' : 'Lưu'}
+                               </button>
+                            </div>
+                          </div>
+                        )})
+                    )}
+                    {!loadingVouchers && publicVouchers.filter(v => v.scope === userData.tier).length === 0 && (
+                      <div className="col-span-full py-8 text-center bg-[#2d2627]/50 rounded-xl border border-[#4a3f41] border-dashed">
+                        <span className="text-[#c9c4c5]">Hiện chưa có ưu đãi độc quyền nào khả dụng.</span>
+                      </div>
+                    )}
+                  </div>
                 </div>
               )}
 
@@ -978,6 +1164,12 @@ export default function Profile() {
                               <div className="absolute top-3 left-3 bg-gradient-to-r from-[#e83b41] to-[#ff5258] text-white text-xs font-extrabold px-3 py-1.5 rounded-lg shadow-lg backdrop-blur-sm border border-white/20">
                                 {discountBadge}
                               </div>
+                              
+                              {voucher.scope !== 'PUBLIC' && voucher.scope !== 'PRIVATE' && (
+                                <div className="absolute top-12 left-3 bg-gradient-to-r from-yellow-500 to-yellow-600 text-white text-xs font-bold px-3 py-1 rounded-lg shadow border border-yellow-300/30">
+                                  Hạng {voucher.scope === 'SILVER' ? 'Bạc' : voucher.scope === 'GOLD' ? 'Vàng' : voucher.scope === 'PLATINUM' ? 'Bạch Kim' : voucher.scope}
+                                </div>
+                              )}
                               
                               <div className={`absolute top-3 right-3 px-3 py-1.5 rounded-lg text-xs font-bold uppercase shadow-lg backdrop-blur-sm border ${statusColor} text-white border-white/20`}>
                                 {statusText}
@@ -1654,6 +1846,13 @@ export default function Profile() {
           {message.text}
         </div>
       )}
+
+      {/* Tier Benefits Modal */}
+      <TierBenefitsModal 
+        isOpen={isBenefitsModalOpen} 
+        onClose={() => setIsBenefitsModalOpen(false)} 
+        currentTier={userData.tier} 
+      />
 
       <Footer />
     </div>

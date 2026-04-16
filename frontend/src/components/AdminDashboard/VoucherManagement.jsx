@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { voucherService } from '../../services/voucherService';
 import { useEnums } from '../../hooks/useEnums';
 import cloudinaryService from '../../services/cloudinaryService';
@@ -27,6 +27,7 @@ function VoucherManagement({ vouchers: initialVouchersList, users: usersList, on
     startDate: '',
     endDate: '',
     isPublic: true,
+    scope: 'PUBLIC',
     image: '',
     imageFile: null
   });
@@ -141,6 +142,7 @@ function VoucherManagement({ vouchers: initialVouchersList, users: usersList, on
       startDate: voucher.startDate ? voucher.startDate.split('T')[0] : '',
       endDate: voucher.endDate ? voucher.endDate.split('T')[0] : '',
       isPublic: isPublic,
+      scope: voucher.scope || 'PUBLIC',
       image: voucher.image || '',
       status: status, // 'upcoming', 'active', 'expired'
     };
@@ -206,6 +208,7 @@ function VoucherManagement({ vouchers: initialVouchersList, users: usersList, on
       startDate: '',
       endDate: '',
       isPublic: true,
+      scope: 'PUBLIC',
       image: '',
       imageFile: null
     });
@@ -228,6 +231,7 @@ function VoucherManagement({ vouchers: initialVouchersList, users: usersList, on
       startDate: v.startDate || '',
       endDate: v.endDate || '',
       isPublic: v.isPublic !== undefined ? v.isPublic : true,
+      scope: v.scope || 'PUBLIC',
       image: v.image || '',
       imageFile: null
     });
@@ -333,7 +337,8 @@ function VoucherManagement({ vouchers: initialVouchersList, users: usersList, on
         minOrder: formData.minOrder ? Number(formData.minOrder) : null,
         startDate: formData.startDate,
         endDate: formData.endDate,
-        isPublic: formData.isPublic,
+        isPublic: formData.scope === 'PUBLIC',
+        scope: formData.scope,
         image: imageUrl || null,
       };
 
@@ -374,6 +379,7 @@ function VoucherManagement({ vouchers: initialVouchersList, users: usersList, on
           startDate: '',
           endDate: '',
           isPublic: true,
+          scope: 'PUBLIC',
           image: '',
           imageFile: null
         });
@@ -744,13 +750,28 @@ function VoucherManagement({ vouchers: initialVouchersList, users: usersList, on
                   </div>
                   <div className="movie-card__content">
                     <h3 className="movie-card__title">{v.name}</h3>
-                    {v.isPublic === false && (
+                    {v.scope === 'PRIVATE' && (
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4, marginBottom: 8 }}>
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ color: '#7b61ff' }}>
                           <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
                           <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
                         </svg>
                         <span style={{ fontSize: '12px', color: '#7b61ff', fontWeight: 500 }}>Riêng tư</span>
+                      </div>
+                    )}
+                    {v.scope === 'SILVER' && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4, marginBottom: 8 }}>
+                        <span style={{ fontSize: '12px', color: '#c0c0c0', fontWeight: 800, background: '#1a1a1a', padding: '2px 6px', borderRadius: '4px' }}>Hạng Bạc</span>
+                      </div>
+                    )}
+                    {v.scope === 'GOLD' && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4, marginBottom: 8 }}>
+                        <span style={{ fontSize: '12px', color: '#ffd700', fontWeight: 800, background: '#3a2c0c', padding: '2px 6px', borderRadius: '4px' }}>Hạng Vàng</span>
+                      </div>
+                    )}
+                    {v.scope === 'PLATINUM' && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4, marginBottom: 8 }}>
+                        <span style={{ fontSize: '12px', color: '#00d2ff', fontWeight: 800, background: '#0b2b40', padding: '2px 6px', borderRadius: '4px' }}>Hạng Bạch Kim</span>
                       </div>
                     )}
                     <div className="movie-card__meta">
@@ -1050,27 +1071,57 @@ function VoucherManagement({ vouchers: initialVouchersList, users: usersList, on
                     </div>
                   </div>
                   <div className="movie-form__group">
-                    <label>Loại voucher <span className="required">*</span></label>
+                    <label>Phạm vi áp dụng <span className="required">*</span></label>
                     <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
                       <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8, cursor: savingVoucher ? 'not-allowed' : 'pointer', opacity: savingVoucher ? 0.5 : 1 }}>
                         <input
                           type="radio"
-                          name="voucherType"
-                          checked={formData.isPublic}
-                          onChange={() => setFormData({ ...formData, isPublic: true })}
+                          name="voucherScope"
+                          checked={formData.scope === 'PUBLIC'}
+                          onChange={() => setFormData({ ...formData, scope: 'PUBLIC', isPublic: true })}
                           disabled={savingVoucher}
                         />
-                        Công khai
+                        CÔNG KHAI
                       </label>
                       <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8, cursor: savingVoucher ? 'not-allowed' : 'pointer', opacity: savingVoucher ? 0.5 : 1 }}>
                         <input
                           type="radio"
-                          name="voucherType"
-                          checked={!formData.isPublic}
-                          onChange={() => setFormData({ ...formData, isPublic: false })}
+                          name="voucherScope"
+                          checked={formData.scope === 'PRIVATE'}
+                          onChange={() => setFormData({ ...formData, scope: 'PRIVATE', isPublic: false })}
                           disabled={savingVoucher}
                         />
-                        Riêng tư
+                        RIÊNG TƯ
+                      </label>
+                      <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8, cursor: savingVoucher ? 'not-allowed' : 'pointer', opacity: savingVoucher ? 0.5 : 1 }}>
+                        <input
+                          type="radio"
+                          name="voucherScope"
+                          checked={formData.scope === 'SILVER'}
+                          onChange={() => setFormData({ ...formData, scope: 'SILVER', isPublic: false })}
+                          disabled={savingVoucher}
+                        />
+                        HẠNG BẠC
+                      </label>
+                      <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8, cursor: savingVoucher ? 'not-allowed' : 'pointer', opacity: savingVoucher ? 0.5 : 1 }}>
+                        <input
+                          type="radio"
+                          name="voucherScope"
+                          checked={formData.scope === 'GOLD'}
+                          onChange={() => setFormData({ ...formData, scope: 'GOLD', isPublic: false })}
+                          disabled={savingVoucher}
+                        />
+                        HẠNG VÀNG
+                      </label>
+                      <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8, cursor: savingVoucher ? 'not-allowed' : 'pointer', opacity: savingVoucher ? 0.5 : 1 }}>
+                        <input
+                          type="radio"
+                          name="voucherScope"
+                          checked={formData.scope === 'PLATINUM'}
+                          onChange={() => setFormData({ ...formData, scope: 'PLATINUM', isPublic: false })}
+                          disabled={savingVoucher}
+                        />
+                        HẠNG BẠCH KIM
                       </label>
                     </div>
                   </div>

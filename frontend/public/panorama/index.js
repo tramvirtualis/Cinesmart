@@ -15,7 +15,7 @@
  */
 'use strict';
 
-(function() {
+(function () {
   var Marzipano = window.Marzipano;
   var bowser = window.bowser;
   var screenfull = window.screenfull;
@@ -32,7 +32,7 @@
 
   // Detect desktop or mobile mode.
   if (window.matchMedia) {
-    var setMode = function() {
+    var setMode = function () {
       if (mql.matches) {
         document.body.classList.remove('desktop');
         document.body.classList.add('mobile');
@@ -50,7 +50,7 @@
 
   // Detect whether we are on a touch device.
   document.body.classList.add('no-touch');
-  window.addEventListener('touchstart', function() {
+  window.addEventListener('touchstart', function () {
     document.body.classList.remove('no-touch');
     document.body.classList.add('touch');
   });
@@ -71,14 +71,14 @@
   var viewer = new Marzipano.Viewer(panoElement, viewerOpts);
 
   // Create scenes.
-  var scenes = data.scenes.map(function(data) {
+  var scenes = data.scenes.map(function (data) {
     var urlPrefix = "tiles";
     var source = Marzipano.ImageUrlSource.fromString(
       urlPrefix + "/" + data.id + "/{z}/{f}/{y}/{x}.jpg",
       { cubeMapPreviewUrl: urlPrefix + "/" + data.id + "/preview.jpg" });
     var geometry = new Marzipano.CubeGeometry(data.levels);
 
-    var limiter = Marzipano.RectilinearView.limit.traditional(data.faceSize, 100*Math.PI/180, 120*Math.PI/180);
+    var limiter = Marzipano.RectilinearView.limit.traditional(data.faceSize, 100 * Math.PI / 180, 120 * Math.PI / 180);
     var view = new Marzipano.RectilinearView(data.initialViewParameters, limiter);
 
     var scene = viewer.createScene({
@@ -89,13 +89,13 @@
     });
 
     // Create link hotspots.
-    data.linkHotspots.forEach(function(hotspot) {
+    data.linkHotspots.forEach(function (hotspot) {
       var element = createLinkHotspotElement(hotspot);
       scene.hotspotContainer().createHotspot(element, { yaw: hotspot.yaw, pitch: hotspot.pitch });
     });
 
     // Create info hotspots.
-    data.infoHotspots.forEach(function(hotspot) {
+    data.infoHotspots.forEach(function (hotspot) {
       var element = createInfoHotspotElement(hotspot);
       scene.hotspotContainer().createHotspot(element, { yaw: hotspot.yaw, pitch: hotspot.pitch });
     });
@@ -111,7 +111,7 @@
   var autorotate = Marzipano.autorotate({
     yawSpeed: 0.03,
     targetPitch: 0,
-    targetFov: Math.PI/2
+    targetFov: Math.PI / 2
   });
   if (data.settings.autorotateEnabled) {
     autorotateToggleElement.classList.add('enabled');
@@ -123,10 +123,10 @@
   // Set up fullscreen mode, if supported.
   if (screenfull.enabled && data.settings.fullscreenButton) {
     document.body.classList.add('fullscreen-enabled');
-    fullscreenToggleElement.addEventListener('click', function() {
+    fullscreenToggleElement.addEventListener('click', function () {
       screenfull.toggle();
     });
-    screenfull.on('change', function() {
+    screenfull.on('change', function () {
       if (screenfull.isFullscreen) {
         fullscreenToggleElement.classList.add('enabled');
       } else {
@@ -146,9 +146,9 @@
   }
 
   // Set handler for scene switch.
-  scenes.forEach(function(scene) {
+  scenes.forEach(function (scene) {
     var el = document.querySelector('#sceneList .scene[data-id="' + scene.data.id + '"]');
-    el.addEventListener('click', function() {
+    el.addEventListener('click', function () {
       switchScene(scene);
       // On mobile, hide scene list after selecting a scene.
       if (document.body.classList.contains('mobile')) {
@@ -171,12 +171,12 @@
 
   // Associate view controls with elements.
   var controls = viewer.controls();
-  controls.registerMethod('upElement',    new Marzipano.ElementPressControlMethod(viewUpElement,     'y', -velocity, friction), true);
-  controls.registerMethod('downElement',  new Marzipano.ElementPressControlMethod(viewDownElement,   'y',  velocity, friction), true);
-  controls.registerMethod('leftElement',  new Marzipano.ElementPressControlMethod(viewLeftElement,   'x', -velocity, friction), true);
-  controls.registerMethod('rightElement', new Marzipano.ElementPressControlMethod(viewRightElement,  'x',  velocity, friction), true);
-  controls.registerMethod('inElement',    new Marzipano.ElementPressControlMethod(viewInElement,  'zoom', -velocity, friction), true);
-  controls.registerMethod('outElement',   new Marzipano.ElementPressControlMethod(viewOutElement, 'zoom',  velocity, friction), true);
+  controls.registerMethod('upElement', new Marzipano.ElementPressControlMethod(viewUpElement, 'y', -velocity, friction), true);
+  controls.registerMethod('downElement', new Marzipano.ElementPressControlMethod(viewDownElement, 'y', velocity, friction), true);
+  controls.registerMethod('leftElement', new Marzipano.ElementPressControlMethod(viewLeftElement, 'x', -velocity, friction), true);
+  controls.registerMethod('rightElement', new Marzipano.ElementPressControlMethod(viewRightElement, 'x', velocity, friction), true);
+  controls.registerMethod('inElement', new Marzipano.ElementPressControlMethod(viewInElement, 'zoom', -velocity, friction), true);
+  controls.registerMethod('outElement', new Marzipano.ElementPressControlMethod(viewOutElement, 'zoom', velocity, friction), true);
 
   function sanitize(s) {
     return s.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;');
@@ -257,14 +257,14 @@
     icon.classList.add('link-hotspot-icon');
 
     // Set rotation transform.
-    var transformProperties = [ '-ms-transform', '-webkit-transform', 'transform' ];
+    var transformProperties = ['-ms-transform', '-webkit-transform', 'transform'];
     for (var i = 0; i < transformProperties.length; i++) {
       var property = transformProperties[i];
       icon.style[property] = 'rotate(' + hotspot.rotation + 'rad)';
     }
 
     // Add click event handler.
-    wrapper.addEventListener('click', function() {
+    wrapper.addEventListener('click', function () {
       switchScene(findSceneById(hotspot.target));
     });
 
@@ -339,7 +339,7 @@
     modal.classList.add('info-hotspot-modal');
     document.body.appendChild(modal);
 
-    var toggle = function() {
+    var toggle = function () {
       wrapper.classList.toggle('visible');
       modal.classList.toggle('visible');
     };
@@ -359,10 +359,10 @@
 
   // Prevent touch and scroll events from reaching the parent element.
   function stopTouchAndScrollEventPropagation(element, eventList) {
-    var eventList = [ 'touchstart', 'touchmove', 'touchend', 'touchcancel',
-                      'wheel', 'mousewheel' ];
+    var eventList = ['touchstart', 'touchmove', 'touchend', 'touchcancel',
+      'wheel', 'mousewheel'];
     for (var i = 0; i < eventList.length; i++) {
-      element.addEventListener(eventList[i], function(event) {
+      element.addEventListener(eventList[i], function (event) {
         event.stopPropagation();
       });
     }
@@ -396,10 +396,10 @@
     if (seat.type === 'COUPLE') wrapper.classList.add('seat-couple');
     if (seat.isBooked) wrapper.classList.add('seat-booked');
     if (seat.isSelected) wrapper.classList.add('seat-selected');
-    
+
     wrapper.innerHTML = seat.id;
-    
-    wrapper.addEventListener('click', function(e) {
+
+    wrapper.addEventListener('click', function (e) {
       if (seat.isBooked) return;
       // Send message to parent
       window.parent.postMessage({ type: 'SEAT_CLICKED', seatId: seat.id }, '*');
@@ -411,7 +411,7 @@
 
   function clearSeatHotspots() {
     var container = scenes[0].scene.hotspotContainer();
-    currentSeatHotspots.forEach(function(hotspotObj) {
+    currentSeatHotspots.forEach(function (hotspotObj) {
       container.destroyHotspot(hotspotObj.hotspot);
     });
     currentSeatHotspots = [];
@@ -420,32 +420,32 @@
   function renderSeatsProjection(seatsInfo) {
     clearSeatHotspots();
     var container = scenes[0].scene.hotspotContainer();
-    
+
     // Configurable projection parameters
-    var yawCenter = -1.55; 
+    var yawCenter = -1.55;
     var pitchFront = -0.15;  // front row (near screen) looking slightly up (negative is UP in Marzipano usually)
     var pitchBack = 0.25;    // back row (near camera) looking way down 
-    var yawSpreadFront = 1.0; 
+    var yawSpreadFront = 1.0;
     var yawSpreadBack = Math.PI - 0.2; // roughly 2.9
-    
+
     var maxRow = 0;
     var maxCol = 1;
-    seatsInfo.seats.forEach(function(s) {
+    seatsInfo.seats.forEach(function (s) {
       var rowIdx = typeof s.row === 'string' ? (s.row.charCodeAt(0) - 65) : s.row;
       if (rowIdx > maxRow) maxRow = rowIdx;
       if (s.column > maxCol) maxCol = s.column;
     });
 
-    seatsInfo.seats.forEach(function(seat) {
+    seatsInfo.seats.forEach(function (seat) {
       // Row ratio: 0 is front row, 1 is back row
       var rowIdx = typeof seat.row === 'string' ? (seat.row.charCodeAt(0) - 65) : seat.row;
       var y = maxRow > 0 ? (rowIdx / maxRow) : 0;
       // Reverse row ratio physically: front rows (small y) are FAR, back rows (large y) are CLOSE
       // Wait, A is front row near screen (y=0). 
       // H is back row near camera (y=1).
-      
+
       var pitch = pitchFront + y * (pitchBack - pitchFront);
-      
+
       var yawWidth = yawSpreadFront + y * (yawSpreadBack - yawSpreadFront);
       var x = maxCol > 1 ? ((seat.column - 1) / (maxCol - 1) - 0.5) : 0; // -0.5 to 0.5
       var yaw = yawCenter + x * yawWidth;
@@ -456,7 +456,7 @@
         isBooked: seatsInfo.bookedSeats.indexOf(seat.seatId) !== -1,
         isSelected: seatsInfo.selectedSeats.indexOf(seat.seatId) !== -1
       });
-      
+
       var hotspot = container.createHotspot(element, { yaw: yaw, pitch: pitch });
       currentSeatHotspots.push({ id: seat.seatId, hotspot: hotspot, element: element });
 
@@ -467,12 +467,12 @@
   switchScene(scenes[0]);
 
   // Listen for messages from parent window (for 2D map seat sync)
-  window.addEventListener('message', function(event) {
+  window.addEventListener('message', function (event) {
     if (!event.data) return;
-    
+
     if (event.data.type === 'INIT_SEATS') {
       renderSeatsProjection(event.data);
-    } 
+    }
     else if (event.data.type === 'UPDATE_SEATS') {
       // Re-render or update classes
       renderSeatsProjection(event.data);

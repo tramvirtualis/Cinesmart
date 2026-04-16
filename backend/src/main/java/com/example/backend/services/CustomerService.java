@@ -168,9 +168,10 @@ public class CustomerService {
             customer.setVouchers(new java.util.ArrayList<>());
         }
 
-        // Kiểm tra voucher có phải PUBLIC không
-        if (voucher.getScope() != com.example.backend.entities.enums.VoucherScope.PUBLIC) {
-            throw new RuntimeException("Voucher này không phải voucher công khai");
+        // Kiểm tra voucher có phải PUBLIC hoặc cùng hạng với customer không
+        if (voucher.getScope() != com.example.backend.entities.enums.VoucherScope.PUBLIC &&
+            !voucher.getScope().name().equals(customer.getTier().name())) {
+            throw new RuntimeException("Voucher này không dành cho hạng của bạn");
         }
 
         // Kiểm tra xem voucher đã được lưu chưa (kiểm tra bằng voucherId thay vì object)

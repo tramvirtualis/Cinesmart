@@ -9,6 +9,7 @@ import com.example.backend.dtos.VoucherResponseDTO;
 import com.example.backend.entities.Customer;
 import com.example.backend.repositories.CustomerRepository;
 import com.example.backend.services.CustomerService;
+import com.example.backend.services.LoyaltyService;
 import com.example.backend.services.OrderService;
 import com.example.backend.services.CloudinaryService;
 import jakarta.validation.Valid;
@@ -36,6 +37,7 @@ public class CustomerController {
     private final CustomerService customerService;
     private final CustomerRepository customerRepository;
     private final OrderService orderService;
+    private final LoyaltyService loyaltyService;
     private final CloudinaryService cloudinaryService;
 
     @PutMapping("/{id}/profile")
@@ -60,6 +62,8 @@ public class CustomerController {
             customerData.put("phone", updatedCustomer.getPhone());
             customerData.put("dob", updatedCustomer.getDob());
             customerData.put("avatar", updatedCustomer.getAvatar());
+            customerData.put("tier", updatedCustomer.getTier() != null ? updatedCustomer.getTier().name() : "MEMBER");
+            customerData.put("totalSpendLast12Months", updatedCustomer.getTotalSpendLast12Months());
 
             // Map address if exists
             if (updatedCustomer.getAddress() != null) {
@@ -320,6 +324,8 @@ public class CustomerController {
             customerData.put("phone", customer.getPhone());
             customerData.put("dob", customer.getDob());
             customerData.put("avatar", customer.getAvatar());
+            customerData.put("tier", customer.getTier() != null ? customer.getTier().name() : "MEMBER");
+            customerData.put("totalSpendLast12Months", customer.getTotalSpendLast12Months());
 
             // Map address if exists
             if (customer.getAddress() != null) {
@@ -401,6 +407,22 @@ public class CustomerController {
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(createErrorResponse("Có lỗi xảy ra: " + e.getMessage()));
+        }
+    }
+
+    @PostMapping("/sync-tiers")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('CUSTOMER')")
+    public ResponseEntity<?> syncAllTiers() {
+        try {
+            Map<String, Object> result = loyaltyService.syncAllTiers();
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("message", "Đồng bộ hạng thành viên thành công");
+            response.put("data", result);
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(createErrorResponse("Có lỗi xảy ra khi đồng bộ hạng: " + e.getMessage()));
         }
     }
 
