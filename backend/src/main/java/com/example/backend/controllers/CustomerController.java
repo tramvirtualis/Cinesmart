@@ -7,7 +7,9 @@ import com.example.backend.dtos.OrderResponseDTO;
 import com.example.backend.dtos.UpdateCustomerProfileRequestDTO;
 import com.example.backend.dtos.VoucherResponseDTO;
 import com.example.backend.entities.Customer;
+import com.example.backend.entities.Order;
 import com.example.backend.repositories.CustomerRepository;
+import com.example.backend.repositories.OrderRepository;
 import com.example.backend.services.CustomerService;
 import com.example.backend.services.LoyaltyService;
 import com.example.backend.services.OrderService;
@@ -36,6 +38,7 @@ public class CustomerController {
 
     private final CustomerService customerService;
     private final CustomerRepository customerRepository;
+    private final OrderRepository orderRepository;
     private final OrderService orderService;
     private final LoyaltyService loyaltyService;
     private final CloudinaryService cloudinaryService;
@@ -313,8 +316,16 @@ public class CustomerController {
     public ResponseEntity<?> getCurrentProfile() {
         try {
             Long userId = getCurrentCustomerId();
-            Customer customer = customerRepository.findById(userId)
-                    .orElseThrow(() -> new RuntimeException("Không tìm thấy khách hàng"));
+            System.out.println("DEBUG /profile - userId: " + userId);
+            
+            // Recalculate tier and spending, use the returned Customer directly
+            // (avoid JPA L1 cache stale read by NOT calling findById after this)
+            Customer customer = loyaltyService.recalculateTierForCustomer(userId);
+            if (customer == null) {
+                return ResponseEntity.badRequest().body(createErrorResponse("Không tìm thấy khách hàng"));
+            }
+            
+            System.out.println("DEBUG /profile after recalc - tier: " + customer.getTier() + ", spend: " + customer.getTotalSpendLast12Months());
 
             Map<String, Object> customerData = new HashMap<>();
             customerData.put("userId", customer.getUserId());
@@ -378,6 +389,10 @@ public class CustomerController {
                     userId,
                     orderId,
                     request != null ? request.getReason() : null);
+            
+            // Recalculate tier and spending after cancellation
+            loyaltyService.recalculateTierForCustomer(userId);
+            
             Map<String, Object> response = new HashMap<>();
             response.put("success", true);
             response.put("message", "Hủy đơn hàng thành công");
@@ -426,6 +441,26 @@ public class CustomerController {
         }
     }
 
+    /**
+     * DEBUG: Xem chi tiết tính toán chi tiêu 12 tháng của customer hiện tại
+     * Hiển thị từng đơn hàng được tính / không được tính và lý do
+     */
+    @GetMapping("/debug-spending")
+    @PreAuthorize("hasRole('CUSTOMER')")
+    public ResponseEntity<?> debugSpending() {
+        try {
+            Long userId = getCurrentCustomerId();
+            Map<String, Object> result = loyaltyService.debugSpendingCalculation(userId);
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("data", result);
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(createErrorResponse("Lỗi: " + e.getMessage()));
+        }
+    }
+
     @GetMapping("/expense-statistics")
     @PreAuthorize("hasRole('CUSTOMER')")
     public ResponseEntity<?> getExpenseStatistics() {
@@ -469,9 +504,18 @@ public class CustomerController {
             @PathVariable Long orderId,
             @RequestBody(required = false) CancelOrderRequestDTO request) {
         try {
+            // Get order to retrieve userId before cancellation
+            Order order = orderRepository.findById(orderId)
+                    .orElseThrow(() -> new RuntimeException("Đơn hàng không tồn tại"));
+            Long userId = order.getUser().getUserId();
+            
             CancelOrderResponseDTO result = orderService.cancelOrderAdmin(
                     orderId,
                     request != null ? request.getReason() : null);
+            
+            // Recalculate tier and spending after cancellation
+            loyaltyService.recalculateTierForCustomer(userId);
+            
             Map<String, Object> response = new HashMap<>();
             response.put("success", true);
             response.put("message", "Hủy đơn hàng thành công");

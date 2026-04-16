@@ -360,12 +360,34 @@ public class OrderService {
                 "Hoàn tiền hủy đơn #" + order.getOrderId(),
                 "ORDER-" + order.getOrderId());
 
+        // Retrieve and deduct any cashback received from this order
+        BigDecimal cashbackToDeduct = loyaltyService.retrieveCashbackForCancelledOrder(userId, order.getOrderId());
+        if (cashbackToDeduct.compareTo(BigDecimal.ZERO) > 0) {
+            try {
+                walletService.debit(userId, cashbackToDeduct, 
+                        "Lấy lại hoàn tiền hạng cho đơn #" + order.getOrderId(), 
+                        "CASHBACK-CLAWBACK-" + order.getOrderId());
+                log.info("Deducted cashback {} for cancelled order {} from user {}", 
+                        cashbackToDeduct, order.getOrderId(), userId);
+            } catch (Exception e) {
+                log.warn("Unable to debit cashback for cancelled order {}: {}", 
+                        order.getOrderId(), e.getMessage());
+            }
+        }
+
         order.setStatus(OrderStatus.CANCELLED);
         order.setCancelledAt(now);
         order.setCancellationReason(normalizedReason);
         order.setRefundAmount(refundAmount);
         order.setRefundedToWallet(Boolean.TRUE);
         orderRepository.save(order);
+
+        // Recalculate customer's tier and spending after cancellation
+        try {
+            loyaltyService.recalculateTierAfterCancellation(userId);
+        } catch (Exception e) {
+            log.error("Error recalculating tier after order cancellation: {}", e.getMessage());
+        }
 
         // Gửi thông báo hủy đơn thành công
         try {
@@ -501,12 +523,34 @@ public class OrderService {
                 "Hoàn tiền hủy đơn #" + order.getOrderId() + " (Admin)",
                 "ORDER-" + order.getOrderId());
 
+        // Retrieve and deduct any cashback received from this order
+        BigDecimal cashbackToDeduct = loyaltyService.retrieveCashbackForCancelledOrder(order.getUser().getUserId(), order.getOrderId());
+        if (cashbackToDeduct.compareTo(BigDecimal.ZERO) > 0) {
+            try {
+                walletService.debit(order.getUser().getUserId(), cashbackToDeduct, 
+                        "Lấy lại hoàn tiền hạng cho đơn #" + order.getOrderId() + " (Admin)", 
+                        "CASHBACK-CLAWBACK-" + order.getOrderId());
+                log.info("Deducted cashback {} for admin-cancelled order {} from user {}", 
+                        cashbackToDeduct, order.getOrderId(), order.getUser().getUserId());
+            } catch (Exception e) {
+                log.warn("Unable to debit cashback for admin-cancelled order {}: {}", 
+                        order.getOrderId(), e.getMessage());
+            }
+        }
+
         order.setStatus(OrderStatus.CANCELLED);
         order.setCancelledAt(now);
         order.setCancellationReason(normalizedReason);
         order.setRefundAmount(refundAmount);
         order.setRefundedToWallet(Boolean.TRUE);
         orderRepository.save(order);
+
+        // Recalculate customer's tier and spending after cancellation
+        try {
+            loyaltyService.recalculateTierAfterCancellation(order.getUser().getUserId());
+        } catch (Exception e) {
+            log.error("Error recalculating tier after admin order cancellation: {}", e.getMessage());
+        }
 
         return CancelOrderResponseDTO.builder()
                 .orderId(order.getOrderId())

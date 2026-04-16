@@ -17,5 +17,8 @@ public interface WalletTransactionRepository extends JpaRepository<WalletTransac
     
     @Query("SELECT COUNT(wt) > 0 FROM WalletTransaction wt WHERE wt.wallet.customer.userId = :userId AND wt.referenceCode LIKE :referenceCodePattern")
     boolean existsByUserIdAndReferenceCodePattern(@Param("userId") Long userId, @Param("referenceCodePattern") String referenceCodePattern);
+    
+    @Query("SELECT wt FROM WalletTransaction wt WHERE wt.wallet.customer.userId = :userId AND wt.referenceCode LIKE CONCAT('CASHBACK-', :orderId, '%')")
+    List<WalletTransaction> findCashbackByUserIdAndOrderId(@Param("userId") Long userId, @Param("orderId") Long orderId);
 }
 

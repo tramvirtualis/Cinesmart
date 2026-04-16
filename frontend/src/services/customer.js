@@ -238,3 +238,37 @@ export const cancelOrderAdmin = async (orderId, reason) => {
     throw err;
   }
 };
+
+// Helper function: Calculate spending from orders in last 12 months
+// Formula: Spending = Total PAID orders - Total CANCELLED orders (both within last 12 months, excluding topup)
+export const calculateSpendLast12Months = (orders) => {
+  const oneYearAgo = new Date();
+  oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
+
+  // Calculate PAID total
+  const paidTotal = orders
+    .filter(order => {
+      if (order.status !== 'PAID') return false;
+      if (order.isTopUp === true || order.isTopUp === 'true') return false;
+      const orderDate = new Date(order.orderDate);
+      return orderDate >= oneYearAgo;
+    })
+    .reduce((total, order) => {
+      return total + (order.totalAmount || 0);
+    }, 0);
+
+  // Calculate CANCELLED total (refunded orders)
+  const cancelledTotal = orders
+    .filter(order => {
+      if (order.status !== 'CANCELLED') return false;
+      if (order.isTopUp === true || order.isTopUp === 'true') return false;
+      const orderDate = new Date(order.orderDate);
+      return orderDate >= oneYearAgo;
+    })
+    .reduce((total, order) => {
+      return total + (order.totalAmount || 0);
+    }, 0);
+
+  // Spending = PAID - CANCELLED
+  return paidTotal - cancelledTotal;
+};

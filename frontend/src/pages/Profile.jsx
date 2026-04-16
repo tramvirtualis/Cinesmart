@@ -80,6 +80,7 @@ export default function Profile() {
   const [loadingExpenseStats, setLoadingExpenseStats] = useState(false);
   const [hasPassword, setHasPassword] = useState(null);
   const [loadingPasswordCheck, setLoadingPasswordCheck] = useState(false);
+  // spendLast12Months is read directly from userData.totalSpendLast12Months (from DB)
   const [passwordForm, setPasswordForm] = useState({
     oldPassword: '',
     newPassword: '',
@@ -159,6 +160,9 @@ export default function Profile() {
           totalSpendLast12Months: profile.totalSpendLast12Months || 0,
         });
 
+        // totalSpendLast12Months is already returned by /customer/profile (backend recalculates before responding)
+        // No need to re-fetch orders on frontend — use the DB value directly
+
         // Update localStorage với avatar mới
         storedUser.avatar = profile.avatar;
         storedUser.name = profile.name;
@@ -201,6 +205,49 @@ export default function Profile() {
     };
 
     loadUserProfile();
+  }, []);
+
+  // Listen to payment success event to reload profile (for tier/spending updates)
+  useEffect(() => {
+    const handlePaymentSuccess = () => {
+      console.log('Payment success event detected, reloading profile...');
+      const reloadUserProfile = async () => {
+        const token = localStorage.getItem('jwt');
+        const storedUser = JSON.parse(localStorage.getItem('user')) || {};
+        
+        if (!token) return;
+        
+        try {
+          const profile = await getCurrentProfile();
+          
+          // Update userData with fresh tier and spending
+          setUserData(prev => ({
+            ...prev,
+            tier: profile.tier || "MEMBER",
+            totalSpendLast12Months: profile.totalSpendLast12Months || 0,
+          }));
+
+          // totalSpendLast12Months is returned by /customer/profile — use DB value directly
+
+          // Update localStorage
+          storedUser.tier = profile.tier;
+          storedUser.totalSpendLast12Months = profile.totalSpendLast12Months;
+          localStorage.setItem('user', JSON.stringify(storedUser));
+          
+          console.log('Profile reloaded after payment:', { tier: profile.tier, totalSpend: profile.totalSpendLast12Months });
+        } catch (error) {
+          console.error('Error reloading profile after payment:', error);
+        }
+      };
+      
+      reloadUserProfile();
+    };
+
+    window.addEventListener('paymentSuccess', handlePaymentSuccess);
+    
+    return () => {
+      window.removeEventListener('paymentSuccess', handlePaymentSuccess);
+    };
   }, []);
 
   // Read tab from URL query parameter on mount
@@ -984,12 +1031,14 @@ export default function Profile() {
                   {/* Loyalty Card Matching Image UI */}
                   {(() => {
                     const tierName = userData.tier === 'PLATINUM' ? 'BẠCH KIM' : userData.tier === 'GOLD' ? 'VÀNG' : userData.tier === 'SILVER' ? 'BẠC' : 'THÀNH VIÊN';
-                    const spent = userData.totalSpendLast12Months || 0;
+                    const spent = userData.totalSpendLast12Months || 0;  // Use value stored in DB (backend recalculates on profile load)
                     
-                    const thresholds = { 'MEMBER': 1500000, 'SILVER': 2500000, 'GOLD': 4500000 };
-                    const nextTiers = { 'MEMBER': 'Bạc', 'SILVER': 'Vàng', 'GOLD': 'Bạch Kim' };
-                    const threshold = thresholds[userData.tier];
-                    const currentBoundary = thresholds[Object.keys(thresholds)[Object.keys(thresholds).indexOf(userData.tier) - 1]] || 0;
+                    const thresholds = { 'MEMBER': 1500000, 'SILVER': 2500000, 'GOLD': 4500000, 'PLATINUM': 4500000 };
+                    const nextTiers = { 'MEMBER': 'Bạc', 'SILVER': 'Vàng', 'GOLD': 'Bạch Kim', 'PLATINUM': 'Bạch Kim' };
+                    const threshold = thresholds[userData.tier] || 0;
+                    const tierArray = ['MEMBER', 'SILVER', 'GOLD', 'PLATINUM'];
+                    const tierIndex = tierArray.indexOf(userData.tier);
+                    const currentBoundary = tierIndex > 0 ? thresholds[tierArray[tierIndex - 1]] : 0;
                     
                     let bgGradient = 'from-gray-700 to-gray-900 border-gray-500/30';
                     let iconColor = 'text-gray-400';

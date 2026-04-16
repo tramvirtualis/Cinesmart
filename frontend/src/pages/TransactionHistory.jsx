@@ -21,27 +21,44 @@ export default function TransactionHistory() {
                 getMyOrders().catch(() => [])
             ]);
 
+            // Filter transactions to last 12 months
+            const oneYearAgo = new Date();
+            oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
+
             // Combine và sort transactions
             const combined = [];
 
-            // Add wallet transactions
+            // Add wallet transactions (only last 12 months)
             walletTxs.forEach(tx => {
-                combined.push({
-                    id: `wallet-${tx.transactionId}`,
-                    date: new Date(tx.createdAt),
-                    type: tx.type === 'CREDIT' ? 'Top-up' : 'Payment',
-                    paymentMethod: 'Wallet',
-                    items: tx.description || (tx.type === 'CREDIT' ? 'Nạp tiền vào ví' : 'Thanh toán bằng ví'),
-                    total: tx.amount,
-                    walletChange: tx.type === 'CREDIT' ? `+${tx.amount.toLocaleString('vi-VN')}₫` : `-${tx.amount.toLocaleString('vi-VN')}₫`,
-                    balance: tx.balanceAfter ? `${tx.balanceAfter.toLocaleString('vi-VN')}₫` : '',
-                    isWallet: true
-                });
+                const txDate = new Date(tx.createdAt);
+                if (txDate >= oneYearAgo) {
+                    // For CREDIT: show +amount, for DEBIT: show -amount
+                    const amountValue = Math.abs(tx.amount || 0);
+                    const displayAmount = tx.type === 'CREDIT' ? `+${amountValue.toLocaleString('vi-VN')}₫` : `-${amountValue.toLocaleString('vi-VN')}₫`;
+                    
+                    combined.push({
+                        id: `wallet-${tx.transactionId}`,
+                        date: txDate,
+                        type: tx.type === 'CREDIT' ? 'Top-up' : 'Payment',
+                        paymentMethod: 'Wallet',
+                        items: tx.description || (tx.type === 'CREDIT' ? 'Nạp tiền vào ví' : 'Thanh toán bằng ví'),
+                        total: amountValue, // Positive value for display
+                        walletChange: displayAmount,
+                        balance: tx.balanceAfter ? `${tx.balanceAfter.toLocaleString('vi-VN')}₫` : '',
+                        isWallet: true
+                    });
+                }
             });
 
-            // Add orders
+            // Add orders (only last 12 months)
             orders.forEach(order => {
                 const orderDate = order.orderDate ? new Date(order.orderDate) : new Date();
+                
+                // Filter orders to last 12 months
+                if (orderDate < oneYearAgo) {
+                    return; // Skip orders older than 12 months
+                }
+                
                 const items = [];
                 
                 // Get movie titles from items
@@ -103,18 +120,22 @@ export default function TransactionHistory() {
                     finalPaymentMethod = mapPaymentMethod(order.paymentMethod);
                 }
 
+                // Calculate wallet change
+                let walletChangeValue = '';
+                if (order.status === 'CANCELLED' && order.refundedToWallet) {
+                    walletChangeValue = `+${(order.refundAmount || 0).toLocaleString('vi-VN')}₫`;
+                } else if (order.paymentMethod === 'WALLET' || order.paymentMethod === 'wallet') {
+                    walletChangeValue = `-${(order.totalAmount || 0).toLocaleString('vi-VN')}₫`;
+                }
+
                 combined.push({
                     id: `order-${order.orderId}`,
                     date: orderDate,
                     type: typeText,
                     paymentMethod: finalPaymentMethod,
                     items: items.join(', '),
-                    total: order.totalAmount,
-                    walletChange: order.status === 'CANCELLED' && order.refundedToWallet 
-                        ? `+${(order.refundAmount || 0).toLocaleString('vi-VN')}₫` 
-                        : order.paymentMethod === 'WALLET' || order.paymentMethod === 'wallet'
-                        ? `-${(order.totalAmount || 0).toLocaleString('vi-VN')}₫` 
-                        : '',
+                    total: order.totalAmount, // Positive value - no minus sign
+                    walletChange: walletChangeValue,
                     balance: '',
                     isWallet: false,
                     orderId: order.orderId
