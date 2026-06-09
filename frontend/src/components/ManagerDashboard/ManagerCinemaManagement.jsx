@@ -6,10 +6,6 @@ import {
   computeUserExtraEmptyFromRoom,
   countSeatsInGrid,
   filterEmptyCellsForDimensions,
-  getRoomFormGridCellDisplay,
-  getWalkwayColumns,
-  parseSeatCellKey,
-  seatCellKey,
 } from '../AdminDashboard/utils';
 import ConfirmDeleteModal from '../Common/ConfirmDeleteModal';
 import movieService from '../../services/movieService';
@@ -177,23 +173,6 @@ function ManagerCinemaManagement({ cinemas: initialCinemasList, onCinemasChange,
       emptyCells: computeUserExtraEmptyFromRoom(room),
     });
     setShowRoomModal(true);
-  };
-
-  const toggleRoomFormEmptyCell = (key) => {
-    const p = parseSeatCellKey(key);
-    if (p && getWalkwayColumns(roomFormData.cols).has(p.col)) {
-      const dimsMatch = editingRoom && editingRoom.rows === roomFormData.rows && editingRoom.cols === roomFormData.cols;
-      const legacySeatHere = dimsMatch && editingRoom.seats?.some(
-        s => String(s.row).toUpperCase() === p.row && Number(s.column) === p.col
-      );
-      if (!legacySeatHere) return;
-    }
-    setRoomFormData(prev => {
-      const set = new Set(prev.emptyCells || []);
-      if (set.has(key)) set.delete(key);
-      else set.add(key);
-      return { ...prev, emptyCells: Array.from(set) };
-    });
   };
 
   // Load movies for showtime management
@@ -901,31 +880,11 @@ function ManagerCinemaManagement({ cinemas: initialCinemasList, onCinemasChange,
 
     const { default: cinemaRoomService } = await import('../../services/cinemaRoomService');
 
-    if (currentSeat.type === 'COUPLE') {
-      const updatedRoom = {
-        ...room,
-        seats: room.seats.filter(s => s.seatId !== seatId),
-      };
-      patchRoomInState(cinemaIndex, roomIndex, updatedRoom);
-      try {
-        const result = await cinemaRoomService.deleteSeatManager(seatId);
-        if (!result.success) {
-          const restored = {
-            ...room,
-            seats: room.seats.map(s => (s.seatId === seatId ? { ...currentSeat } : s)),
-          };
-          patchRoomInState(cinemaIndex, roomIndex, restored);
-          showNotification(result.error || 'Không thể chuyển thành trống', 'error');
-        }
-      } catch (e) {
-        patchRoomInState(cinemaIndex, roomIndex, { ...room, seats: [...room.seats] });
-        showNotification('Có lỗi khi xóa ghế', 'error');
-      }
-      return;
-    }
-
     const idx = SEAT_TYPE_CYCLE.indexOf(currentSeat.type);
-    const nextType = idx >= 0 ? SEAT_TYPE_CYCLE[idx + 1] : 'VIP';
+    const nextType =
+      idx >= 0
+        ? SEAT_TYPE_CYCLE[(idx + 1) % SEAT_TYPE_CYCLE.length]
+        : 'VIP';
 
     const optimisticRoom = {
       ...room,
@@ -1035,21 +994,23 @@ function ManagerCinemaManagement({ cinemas: initialCinemasList, onCinemasChange,
                   const key = `${rowChar}-${col}`;
                   const seat = seatMap.get(key);
                   if (seat && seat.seatId) {
-                    const isCouple = seat.type === 'COUPLE';
-                    const nextHint = seat.type === 'COUPLE'
-                      ? ' — Click: thành trống'
-                      : seat.type === 'VIP'
-                        ? ' — Click: thành Đôi'
-                        : ' — Click: thành VIP';
+                    const nextHint =
+                      seat.type === 'COUPLE'
+                        ? ' — Click: thành Thường'
+                        : seat.type === 'VIP'
+                          ? ' — Click: thành Đôi'
+                          : ' — Click: thành VIP';
                     return (
                       <button
                         key={seat.seatId}
                         type="button"
-                        className={`seat-button ${isCouple ? 'seat-button--couple' : ''}`}
+                        className="seat-button"
                         style={{
                           backgroundColor: getSeatColor(seat.type),
                           borderColor: getSeatColor(seat.type),
-                          width: isCouple ? '64px' : '44px',
+                          width: '44px',
+                          minWidth: '44px',
+                          height: '44px',
                         }}
                         onClick={() => handleSeatClick(seat.seatId)}
                         title={`${seat.row}${seat.column} — ${seat.type === 'NORMAL' ? 'Thường' : seat.type === 'VIP' ? 'VIP' : 'Đôi'}${nextHint}`}
@@ -1096,22 +1057,15 @@ function ManagerCinemaManagement({ cinemas: initialCinemasList, onCinemasChange,
           <div className="seat-legend">
             <div className="seat-legend__item">
               <div className="seat-legend__color" style={{ backgroundColor: getSeatColor('NORMAL') }}></div>
-              <span>Thường → VIP → Đôi → trống</span>
+              <span>Thường → VIP → Đôi → Thường</span>
             </div>
             <div className="seat-legend__item">
               <div className="seat-legend__color" style={{ backgroundColor: getSeatColor('VIP') }}>⭐</div>
               <span>VIP</span>
             </div>
             <div className="seat-legend__item">
-              <div className="seat-legend__color" style={{ backgroundColor: getSeatColor('COUPLE'), width: '48px' }}>💑</div>
-              <span>Đôi — click thêm lần = trống</span>
-            </div>
-            <div className="seat-legend__item">
-              <div className="seat-legend__color" style={{
-                background: 'repeating-linear-gradient(135deg, #444 0, #444 3px, #222 3px, #222 6px)',
-                border: '1px dashed #666',
-              }} />
-              <span>Ô trống — click thêm ghế</span>
+              <div className="seat-legend__color" style={{ backgroundColor: getSeatColor('COUPLE') }}>💑</div>
+              <span>Đôi</span>
             </div>
           </div>
         </div>
@@ -1387,7 +1341,7 @@ function ManagerCinemaManagement({ cinemas: initialCinemasList, onCinemasChange,
                   <circle cx="12" cy="12" r="10"/>
                   <path d="M12 16v-4M12 8h.01"/>
                 </svg>
-                Click ghế: Thường → VIP → Đôi → trống. Click ô trống để thêm ghế Thường.
+                Click ghế: Thường → VIP → Đôi → Thường. Click ô trống để thêm ghế Thường.
               </p>
               {renderSeatLayout(selectedRoom)}
             </div>
@@ -1772,117 +1726,11 @@ function ManagerCinemaManagement({ cinemas: initialCinemasList, onCinemasChange,
                   </p>
                 )}
                 {editingRoom && (
-                  <div className="movie-form__group" style={{ marginTop: '8px' }}>
-                    <label>Sơ đồ ghế (xem trước — giống màn xem layout)</label>
-                    <p style={{ fontSize: '13px', color: '#c9c4c5', margin: '0 0 10px' }}>
-                      Màu xanh / vàng ⭐ / đôi 💑 theo quy tắc tạo lại layout. Ô sọc khóa = lối đi mặc định.
-                      Click ô ghế để đánh dấu/bỏ <strong>ô trống thêm</strong>. Phải còn ít nhất một ghế.
-                    </p>
-                    <div style={{ overflowX: 'auto', paddingBottom: '8px', background: 'rgba(0,0,0,0.2)', borderRadius: 12, padding: '12px' }}>
-                      <div style={{ marginBottom: 8, textAlign: 'center', padding: '6px 12px', borderRadius: 8, background: 'linear-gradient(90deg, #2d1f4a, #1a1530)', color: '#c9b8e8', fontSize: 12, fontWeight: 600 }}>
-                        🎬 Màn hình 🎬
-                      </div>
-                      {Array.from({ length: Math.min(26, Math.max(0, roomFormData.rows)) }, (_, ri) => {
-                        const rowChar = String.fromCharCode(65 + ri);
-                        const r = Math.min(26, Math.max(0, roomFormData.rows));
-                        const c = Math.min(30, Math.max(0, roomFormData.cols));
-                        return (
-                          <div key={rowChar} style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
-                            <span style={{ width: 24, color: '#fff', fontWeight: 700, fontSize: 14, flexShrink: 0 }}>{rowChar}</span>
-                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center' }}>
-                              {Array.from({ length: c }, (_, ci) => {
-                                const col = ci + 1;
-                                const cell = getRoomFormGridCellDisplay(ri, col, r, c, roomFormData.emptyCells, editingRoom);
-                                if (cell.mode === 'walkway') {
-                                  return (
-                                    <button
-                                      type="button"
-                                      key={cell.key}
-                                      disabled
-                                      title={`${cell.key} — lối đi mặc định`}
-                                      style={{
-                                        width: 44,
-                                        height: 44,
-                                        padding: 0,
-                                        borderRadius: 8,
-                                        border: '2px solid rgba(255,255,255,0.2)',
-                                        background: 'repeating-linear-gradient(135deg, #333 0, #333 4px, #1a1a1a 4px, #1a1a1a 8px)',
-                                        color: 'rgba(255,255,255,0.4)',
-                                        cursor: 'default',
-                                        fontSize: 11,
-                                        fontWeight: 600,
-                                      }}
-                                    >
-                                      ·
-                                    </button>
-                                  );
-                                }
-                                if (cell.mode === 'userEmpty') {
-                                  return (
-                                    <button
-                                      type="button"
-                                      key={cell.key}
-                                      onClick={() => toggleRoomFormEmptyCell(cell.key)}
-                                      title={`${cell.key} — trống thêm (click để có ghế)`}
-                                      style={{
-                                        width: 44,
-                                        height: 44,
-                                        padding: 0,
-                                        borderRadius: 8,
-                                        border: '2px dashed rgba(255,255,255,0.45)',
-                                        background: 'repeating-linear-gradient(135deg, rgba(45,45,50,0.95) 0, rgba(45,45,50,0.95) 4px, rgba(22,22,28,1) 4px, rgba(22,22,28,1) 8px)',
-                                        color: 'rgba(255,255,255,0.5)',
-                                        cursor: 'pointer',
-                                        fontSize: 12,
-                                        fontWeight: 600,
-                                      }}
-                                    >
-                                      {col}
-                                    </button>
-                                  );
-                                }
-                                const isCouple = cell.seatType === 'COUPLE';
-                                const label = cell.seatType === 'NORMAL' ? 'Thường' : cell.seatType === 'VIP' ? 'VIP' : 'Đôi';
-                                return (
-                                  <button
-                                    type="button"
-                                    key={cell.key}
-                                    onClick={() => toggleRoomFormEmptyCell(cell.key)}
-                                    title={`${cell.key} — ${label} (click → ô trống thêm)`}
-                                    style={{
-                                      width: isCouple ? 64 : 44,
-                                      minWidth: isCouple ? 64 : 44,
-                                      height: 44,
-                                      padding: 0,
-                                      borderRadius: 8,
-                                      border: `1px solid ${getSeatColor(cell.seatType)}`,
-                                      backgroundColor: getSeatColor(cell.seatType),
-                                      color: '#fff',
-                                      cursor: 'pointer',
-                                      fontSize: 12,
-                                      fontWeight: 700,
-                                      display: 'inline-flex',
-                                      alignItems: 'center',
-                                      justifyContent: 'center',
-                                      gap: 2,
-                                    }}
-                                  >
-                                    <span>{col}</span>
-                                    {cell.seatType === 'VIP' ? <span>⭐</span> : null}
-                                    {cell.seatType === 'COUPLE' ? <span>💑</span> : null}
-                                  </button>
-                                );
-                              })}
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
-                {editingRoom && (
                   <div className="movie-form__group">
-                    <p className="movie-modal__warning">⚠️ Thay đổi số hàng/cột hoặc ô trống sẽ tạo lại toàn bộ layout ghế (nếu phòng chưa có vé đã thanh toán).</p>
+                    <p className="movie-modal__warning" style={{ marginTop: '12px' }}>
+                      ⚠️ Thay đổi số hàng/cột sẽ tạo lại toàn bộ layout ghế (nếu phòng chưa có vé đã thanh toán).
+                      Chỉnh loại ghế tại màn <strong>sơ đồ ghế</strong>.
+                    </p>
                   </div>
                 )}
               </div>

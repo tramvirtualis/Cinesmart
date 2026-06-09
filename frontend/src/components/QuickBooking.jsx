@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import scheduleService from '../services/scheduleService';
 import { movieService } from '../services/movieService';
 import { enumService } from '../services/enumService';
 import showtimeService from '../services/showtimeService';
 import AgeConfirmationModal from './AgeConfirmationModal.jsx';
+import { buildDateOptionsFromListings } from '../utils/scheduleDateUtils';
 
 const QuickBooking = ({ onFilterChange, horizontal = false, hideTitle = false, initialFilters = null }) => {
   const navigate = useNavigate();
@@ -68,32 +69,41 @@ const QuickBooking = ({ onFilterChange, horizontal = false, hideTitle = false, i
   const [pendingShowtime, setPendingShowtime] = useState(null);
   const [movieData, setMovieData] = useState(null);
   const [loadingMovie, setLoadingMovie] = useState(false);
+
+  // Chỉ hiển thị ngày có suất chiếu thực tế (master data cho dropdown)
+  const refreshDateOptions = useCallback(async (cinemaId = '', movieId = '') => {
+    try {
+      const listings = await scheduleService.getListings({
+        cinemaId: cinemaId ? Number(cinemaId) : undefined,
+        movieId: movieId ? Number(movieId) : undefined,
+      });
+      const dates = buildDateOptionsFromListings(listings, {
+        cinemaId: cinemaId ? Number(cinemaId) : undefined,
+        movieId: movieId ? Number(movieId) : undefined,
+      });
+      setDateTimeOptions(dates);
+      return dates;
+    } catch (err) {
+      console.error('Error loading date options:', err);
+      setDateTimeOptions([]);
+      return [];
+    }
+  }, []);
   
   // Load tất cả options khi component mount
   useEffect(() => {
     const loadAllOptions = async () => {
       setLoadingOptions(true);
       try {
-        // Load cinemas và movies từ scheduleService
         const options = await scheduleService.getOptions({});
-        
         if (options) {
           setCinemas(options.cinemas || []);
           setMovies(options.movies || []);
         }
-        
-        // Load available dates (today + next 6 days)
-            const today = new Date();
-        const dates = [];
-        for (let i = 0; i < 7; i++) {
-          const date = new Date(today);
-          date.setDate(today.getDate() + i);
-          dates.push({
-            value: date.toISOString().split('T')[0],
-            label: formatDateLabel(date, i)
-          });
-        }
-        setDateTimeOptions(dates);
+        await refreshDateOptions(
+          initialFilters?.cinemaId ? String(initialFilters.cinemaId) : '',
+          initialFilters?.movieId ? String(initialFilters.movieId) : ''
+        );
       } catch (err) {
         console.error('Error loading options:', err);
         setError('Không thể tải dữ liệu. Vui lòng thử lại.');
@@ -103,221 +113,55 @@ const QuickBooking = ({ onFilterChange, horizontal = false, hideTitle = false, i
     };
     
     loadAllOptions();
-  }, []);
+  }, [refreshDateOptions, initialFilters?.cinemaId, initialFilters?.movieId]);
   
-  // Format date label
-  const formatDateLabel = (date, index) => {
-    const dayNames = ['Chủ nhật', 'Thứ hai', 'Thứ ba', 'Thứ tư', 'Thứ năm', 'Thứ sáu', 'Thứ bảy'];
-    const day = date.getDate();
-    const month = date.getMonth() + 1;
-    
-    if (index === 0) {
-      return `Hôm nay - ${day}/${month}`;
-    } else if (index === 1) {
-      return `Ngày mai - ${day}/${month}`;
-    } else {
-      return `${dayNames[date.getDay()]} ${day}/${month}`;
-    }
-  };
-  
-  // Handle cinema change - update movies and date/time options
+  // Handle cinema change - cập nhật phim và master dates (không thu hẹp khi chọn ngày)
   const handleCinemaChange = async (cinemaId) => {
     setSelectedCinemaId(cinemaId);
     setError(null);
-    
-    // Clear date if cinema changes (unless movie is also selected, then we'll filter dates)
+
     if (!selectedMovieId) {
       setSelectedDate('');
     }
-    
+
     if (!cinemaId) {
-      // Reset to all movies and dates if no cinema selected
       const options = await scheduleService.getOptions({});
       setMovies(options?.movies || []);
-      // Reset to all dates
-      const today = new Date();
-      const dates = [];
-      for (let i = 0; i < 7; i++) {
-        const date = new Date(today);
-        date.setDate(today.getDate() + i);
-        dates.push({
-          value: date.toISOString().split('T')[0],
-          label: formatDateLabel(date, i)
-        });
-      }
-      setDateTimeOptions(dates);
+      await refreshDateOptions('', selectedMovieId);
       return;
     }
-    
+
     try {
-    setLoading(true);
+      setLoading(true);
       const cinemaIdNum = Number(cinemaId);
-      
-      // If a movie is already selected, filter by both cinema and movie
-      if (selectedMovieId) {
-        const movieIdNum = Number(selectedMovieId);
-        
-        // Get available dates for this cinema + movie combination
-        const availableDates = new Set();
-            const today = new Date();
-        
-        for (let i = 0; i < 7; i++) {
-          const date = new Date(today);
-          date.setDate(today.getDate() + i);
-          const dateStr = date.toISOString().split('T')[0];
-          
-          try {
-            const listings = await scheduleService.getListings({
-              cinemaId: cinemaIdNum,
-              movieId: movieIdNum,
-              date: dateStr
-            });
-            
-            if (listings && listings.length > 0) {
-              availableDates.add(dateStr);
-            }
-      } catch (err) {
-            // Skip if error
-          }
-        }
-        
-        // Update dates
-        const dates = [];
-        for (let i = 0; i < 7; i++) {
-          const date = new Date(today);
-          date.setDate(today.getDate() + i);
-          const dateStr = date.toISOString().split('T')[0];
-          
-          if (availableDates.has(dateStr)) {
-            dates.push({
-              value: dateStr,
-              label: formatDateLabel(date, i)
-            });
-          }
-        }
-        setDateTimeOptions(dates);
-        
-        // If date is already selected, verify it's still valid
-        if (selectedDate && !availableDates.has(selectedDate)) {
-          setSelectedDate('');
-        }
+      const dates = await refreshDateOptions(cinemaId, selectedMovieId);
+
+      if (selectedDate && !dates.some((d) => d.value === selectedDate)) {
+        setSelectedDate('');
       }
-      // If a date is already selected, filter movies for this cinema + date
-      else if (selectedDate) {
-        const availableMovies = new Set();
-        
-        try {
-          const listings = await scheduleService.getListings({
-            cinemaId: cinemaIdNum,
-            date: selectedDate
-          });
-          
-          if (listings && listings.length > 0) {
-            listings.forEach(listing => {
-              if (listing.movieId) {
-                availableMovies.add(listing.movieId);
-              }
-            });
-          }
-        } catch (err) {
-          console.error('Error loading movies for cinema + date:', err);
-        }
-        
-        // Filter movies list
-        const allMovies = movies.length > 0 ? movies : (await scheduleService.getOptions({ cinemaId: cinemaIdNum }))?.movies || [];
-        const filteredMovies = allMovies.filter(m => availableMovies.has(m.movieId));
+
+      if (selectedDate && !selectedMovieId) {
+        const listings = await scheduleService.getListings({
+          cinemaId: cinemaIdNum,
+          date: selectedDate,
+        });
+        const availableMovies = new Set(
+          (listings || []).map((l) => l.movieId).filter(Boolean)
+        );
+        const options = await scheduleService.getOptions({ cinemaId: cinemaIdNum });
+        const filteredMovies = (options?.movies || []).filter((m) =>
+          availableMovies.has(m.movieId)
+        );
         setMovies(filteredMovies);
-        
-        // Clear selected movie if it's not in filtered list
-        if (selectedMovieId && !filteredMovies.find(m => m.movieId === Number(selectedMovieId))) {
+        if (selectedMovieId && !filteredMovies.find((m) => m.movieId === Number(selectedMovieId))) {
           setSelectedMovieId('');
         }
-        
-        // Get available dates for this cinema
-        const availableDates = new Set();
-        const today = new Date();
-        
-        for (let i = 0; i < 7; i++) {
-          const date = new Date(today);
-          date.setDate(today.getDate() + i);
-          const dateStr = date.toISOString().split('T')[0];
-          
-          try {
-            const listings = await scheduleService.getListings({
-              cinemaId: cinemaIdNum,
-              date: dateStr
-            });
-            
-            if (listings && listings.length > 0) {
-              availableDates.add(dateStr);
-            }
-          } catch (err) {
-            // Skip if error
-          }
-        }
-        
-        const dates = [];
-        for (let i = 0; i < 7; i++) {
-          const date = new Date(today);
-          date.setDate(today.getDate() + i);
-          const dateStr = date.toISOString().split('T')[0];
-          
-          if (availableDates.has(dateStr)) {
-            dates.push({
-              value: dateStr,
-              label: formatDateLabel(date, i)
-            });
-          }
-        }
-        setDateTimeOptions(dates);
       } else {
-        // No movie and no date selected, just get dates for this cinema
-        const availableDates = new Set();
-        const today = new Date();
-        
-        for (let i = 0; i < 7; i++) {
-          const date = new Date(today);
-          date.setDate(today.getDate() + i);
-          const dateStr = date.toISOString().split('T')[0];
-          
-          try {
-            const listings = await scheduleService.getListings({
-              cinemaId: cinemaIdNum,
-              date: dateStr
-            });
-            
-            if (listings && listings.length > 0) {
-              availableDates.add(dateStr);
-      }
-    } catch (err) {
-            // Skip if error
-          }
-        }
-        
-        const dates = [];
-        for (let i = 0; i < 7; i++) {
-          const date = new Date(today);
-          date.setDate(today.getDate() + i);
-          const dateStr = date.toISOString().split('T')[0];
-          
-          if (availableDates.has(dateStr)) {
-            dates.push({
-              value: dateStr,
-              label: formatDateLabel(date, i)
-            });
-          }
-        }
-        setDateTimeOptions(dates);
-        
-        // Get movies for this cinema
         const options = await scheduleService.getOptions({ cinemaId: cinemaIdNum });
         const cinemaMovies = options?.movies || [];
-        
-        // If selected movie is still in the list, keep it; otherwise clear it
-        if (selectedMovieId && !cinemaMovies.find(m => m.movieId === Number(selectedMovieId))) {
+        if (selectedMovieId && !cinemaMovies.find((m) => m.movieId === Number(selectedMovieId))) {
           setSelectedMovieId('');
         }
-        
         setMovies(cinemaMovies);
       }
     } catch (err) {
@@ -328,207 +172,49 @@ const QuickBooking = ({ onFilterChange, horizontal = false, hideTitle = false, i
     }
   };
   
-  // Handle movie change - update cinemas and date/time options
+  // Handle movie change - cập nhật rạp và master dates
   const handleMovieChange = async (movieId) => {
     setSelectedMovieId(movieId);
     setError(null);
-    
-    // Don't clear date if it's already selected - we'll filter based on movie + date
-    // Only clear date if no cinema is selected AND no date is selected (but this shouldn't happen)
-    
+
     if (!movieId) {
-      // Reset to all cinemas and dates if no movie selected
       const options = await scheduleService.getOptions({});
       setCinemas(options?.cinemas || []);
-      // Reset to all dates
-      const today = new Date();
-      const dates = [];
-      for (let i = 0; i < 7; i++) {
-        const date = new Date(today);
-        date.setDate(today.getDate() + i);
-        dates.push({
-          value: date.toISOString().split('T')[0],
-          label: formatDateLabel(date, i)
-        });
-      }
-      setDateTimeOptions(dates);
+      await refreshDateOptions(selectedCinemaId, '');
       return;
     }
-    
+
     try {
       setLoading(true);
       const movieIdNum = Number(movieId);
-      
-      // If a cinema is already selected, filter by both cinema and movie
-      if (selectedCinemaId) {
-        const cinemaIdNum = Number(selectedCinemaId);
-        
-        // Get available dates for this cinema + movie combination
-        const availableDates = new Set();
-        const today = new Date();
-        
-        for (let i = 0; i < 7; i++) {
-          const date = new Date(today);
-          date.setDate(today.getDate() + i);
-          const dateStr = date.toISOString().split('T')[0];
-          
-          try {
-            const listings = await scheduleService.getListings({
-              cinemaId: cinemaIdNum,
-              movieId: movieIdNum,
-              date: dateStr
-            });
-            
-            if (listings && listings.length > 0) {
-              availableDates.add(dateStr);
-            }
-          } catch (err) {
-            // Skip if error
-          }
-        }
-        
-        // Update dates
-        const dates = [];
-        for (let i = 0; i < 7; i++) {
-          const date = new Date(today);
-          date.setDate(today.getDate() + i);
-          const dateStr = date.toISOString().split('T')[0];
-          
-          if (availableDates.has(dateStr)) {
-            dates.push({
-              value: dateStr,
-              label: formatDateLabel(date, i)
-            });
-          }
-        }
-        setDateTimeOptions(dates);
-        
-        // If date is already selected, verify it's still valid
-        if (selectedDate && !availableDates.has(selectedDate)) {
-          setSelectedDate('');
-        }
+      const dates = await refreshDateOptions(selectedCinemaId, movieId);
+
+      if (selectedDate && !dates.some((d) => d.value === selectedDate)) {
+        setSelectedDate('');
       }
-      // If a date is already selected, filter cinemas for this movie + date
-      else if (selectedDate) {
-        const availableCinemas = new Set();
-        
-        try {
-          const listings = await scheduleService.getListings({
-            movieId: movieIdNum,
-            date: selectedDate
-          });
-          
-          if (listings && listings.length > 0) {
-            listings.forEach(listing => {
-              if (listing.cinemaId) {
-                availableCinemas.add(listing.cinemaId);
-              }
-            });
-          }
-        } catch (err) {
-          console.error('Error loading cinemas for movie + date:', err);
-        }
-        
-        // Filter cinemas list
-        const allCinemas = cinemas.length > 0 ? cinemas : (await scheduleService.getOptions({ movieId: movieIdNum }))?.cinemas || [];
-        const filteredCinemas = allCinemas.filter(c => availableCinemas.has(c.cinemaId));
+
+      if (selectedDate && !selectedCinemaId) {
+        const listings = await scheduleService.getListings({
+          movieId: movieIdNum,
+          date: selectedDate,
+        });
+        const availableCinemas = new Set(
+          (listings || []).map((l) => l.cinemaId).filter(Boolean)
+        );
+        const options = await scheduleService.getOptions({ movieId: movieIdNum });
+        const filteredCinemas = (options?.cinemas || []).filter((c) =>
+          availableCinemas.has(c.cinemaId)
+        );
         setCinemas(filteredCinemas);
-        
-        // Clear selected cinema if it's not in filtered list
-        if (selectedCinemaId && !filteredCinemas.find(c => c.cinemaId === Number(selectedCinemaId))) {
+        if (selectedCinemaId && !filteredCinemas.find((c) => c.cinemaId === Number(selectedCinemaId))) {
           setSelectedCinemaId('');
-        }
-        
-        // Get available dates for this movie
-        const availableDates = new Set();
-        const today = new Date();
-        
-        for (let i = 0; i < 7; i++) {
-          const date = new Date(today);
-          date.setDate(today.getDate() + i);
-          const dateStr = date.toISOString().split('T')[0];
-          
-          try {
-            const listings = await scheduleService.getListings({
-              movieId: movieIdNum,
-              date: dateStr
-            });
-            
-            if (listings && listings.length > 0) {
-              availableDates.add(dateStr);
-            }
-          } catch (err) {
-            // Skip if error
-          }
-        }
-        
-        const dates = [];
-        for (let i = 0; i < 7; i++) {
-          const date = new Date(today);
-          date.setDate(today.getDate() + i);
-          const dateStr = date.toISOString().split('T')[0];
-          
-          if (availableDates.has(dateStr)) {
-            dates.push({
-              value: dateStr,
-              label: formatDateLabel(date, i)
-            });
-          }
-        }
-        setDateTimeOptions(dates);
-        
-        // If date is already selected, verify it's still valid for this movie
-        if (selectedDate && !availableDates.has(selectedDate)) {
-          setSelectedDate('');
         }
       } else {
-        // No cinema and no date selected, get cinemas and dates for this movie
-        const availableDates = new Set();
-        const today = new Date();
-        
-        for (let i = 0; i < 7; i++) {
-          const date = new Date(today);
-          date.setDate(today.getDate() + i);
-          const dateStr = date.toISOString().split('T')[0];
-          
-          try {
-            const listings = await scheduleService.getListings({
-              movieId: movieIdNum,
-              date: dateStr
-            });
-            
-            if (listings && listings.length > 0) {
-              availableDates.add(dateStr);
-      }
-    } catch (err) {
-            // Skip if error
-          }
-        }
-        
-        const dates = [];
-        for (let i = 0; i < 7; i++) {
-          const date = new Date(today);
-          date.setDate(today.getDate() + i);
-          const dateStr = date.toISOString().split('T')[0];
-          
-          if (availableDates.has(dateStr)) {
-            dates.push({
-              value: dateStr,
-              label: formatDateLabel(date, i)
-            });
-          }
-        }
-        setDateTimeOptions(dates);
-        
-        // Get cinemas for this movie
         const options = await scheduleService.getOptions({ movieId: movieIdNum });
         const movieCinemas = options?.cinemas || [];
-        
-        // If selected cinema is still in the list, keep it; otherwise clear it
-        if (selectedCinemaId && !movieCinemas.find(c => c.cinemaId === Number(selectedCinemaId))) {
+        if (selectedCinemaId && !movieCinemas.find((c) => c.cinemaId === Number(selectedCinemaId))) {
           setSelectedCinemaId('');
         }
-        
         setCinemas(movieCinemas);
       }
     } catch (err) {
@@ -722,25 +408,13 @@ const QuickBooking = ({ onFilterChange, horizontal = false, hideTitle = false, i
   };
   
   // Handle Reset button
-  const handleReset = () => {
+  const handleReset = async () => {
     setSelectedCinemaId('');
     setSelectedMovieId('');
     setSelectedDate('');
     setError(null);
-    
-    // Reset date options to all 7 days
-    const today = new Date();
-    const dates = [];
-    for (let i = 0; i < 7; i++) {
-      const date = new Date(today);
-      date.setDate(today.getDate() + i);
-      dates.push({
-        value: date.toISOString().split('T')[0],
-        label: formatDateLabel(date, i)
-      });
-    }
-    setDateTimeOptions(dates);
-    
+    await refreshDateOptions('', '');
+
     // Notify parent component to reset filters and URL
     if (onFilterChange) {
       onFilterChange({

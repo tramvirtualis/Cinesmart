@@ -801,6 +801,25 @@ export default function BookTicket() {
     }
   };
 
+  const handleOpenSeat360 = async () => {
+    const lastSelected =
+      selectedSeats.length > 0 ? selectedSeats[selectedSeats.length - 1] : null;
+    let seatToPreview = null;
+
+    if (lastSelected) {
+      try {
+        await loadPanoramaManifest();
+        if (hasPanoramaForSeat(lastSelected)) {
+          seatToPreview = lastSelected;
+        }
+      } catch {
+        seatToPreview = null;
+      }
+    }
+
+    useSeat360Store.getState().open(seatToPreview);
+  };
+
   const renderSeatLayout = () => {
     if (!selectedRoom) return null;
 
@@ -820,7 +839,7 @@ export default function BookTicket() {
           <div className="seat-layout__screen-label">🎬 Màn hình 🎬</div>
           <button
             type="button"
-            onClick={() => useSeat360Store.getState().open()}
+            onClick={handleOpenSeat360}
             className="mx-auto mt-4 flex items-center gap-2 rounded-full bg-gradient-to-r from-amber-400 to-orange-500 px-4 py-2 text-sm font-bold text-black shadow-lg transition hover:scale-105 active:scale-95"
           >
             <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">

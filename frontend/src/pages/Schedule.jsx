@@ -9,6 +9,7 @@ import scheduleService from '../services/scheduleService.js';
 import showtimeService from '../services/showtimeService.js';
 import { enumService } from '../services/enumService.js';
 import { movieService } from '../services/movieService.js';
+import { buildDateTab, toDateKey } from '../utils/scheduleDateUtils.js';
 
 const formatTime = (value) => {
   if (!value) return '--:--';
@@ -81,8 +82,6 @@ export default function Schedule() {
   const [optionsLoading, setOptionsLoading] = useState(false);
   const [listingsLoading, setListingsLoading] = useState(false);
   const [error, setError] = useState('');
-  const [selectedDates, setSelectedDates] = useState(new Map()); // Map cinemaId -> selectedDate
-  const [dateTabs, setDateTabs] = useState([]);
   const [movieDetails, setMovieDetails] = useState(new Map()); // Map movieId -> movie details
   
   // State for age confirmation modal
@@ -137,46 +136,23 @@ export default function Schedule() {
       setListingsLoading(true);
       setError('');
       try {
-        // If date filter is set, only fetch for that date; otherwise fetch for all dates
-        const allListings = [];
-        const today = new Date();
-        
-        // Check if we have a specific date filter
-        const datesToFetch = date 
-          ? [date] 
-          : Array.from({ length: 7 }, (_, i) => {
-              const dateObj = new Date(today);
-              dateObj.setDate(today.getDate() + i);
-              return dateObj.toISOString().split('T')[0];
-            });
-        
-        for (const dateStr of datesToFetch) {
-          try {
-            const data = await scheduleService.getListings({
-              date: dateStr,
-              movieId,
-              cinemaId,
-            });
-            if (Array.isArray(data)) {
-              allListings.push(...data);
-            }
-          } catch (err) {
-            console.error(`Error fetching listings for date ${dateStr}:`, err);
-          }
-        }
-        
+        const data = await scheduleService.getListings({
+          date: date || undefined,
+          movieId,
+          cinemaId,
+        });
+
         if (!mounted) return;
-        
-        // Remove duplicates based on showtimeId
+
         const uniqueListings = [];
         const seenIds = new Set();
-        allListings.forEach(item => {
+        (Array.isArray(data) ? data : []).forEach((item) => {
           if (item.showtimeId && !seenIds.has(item.showtimeId)) {
             seenIds.add(item.showtimeId);
             uniqueListings.push(item);
           }
         });
-        
+
         setListings(uniqueListings);
       } catch (err) {
         if (mounted) {
@@ -194,7 +170,7 @@ export default function Schedule() {
     return () => {
       mounted = false;
     };
-  }, [movie, cinema]);
+  }, [movie, cinema, date]);
 
   // Load movie details for movies that don't have ageRating
   useEffect(() => {
@@ -231,36 +207,6 @@ export default function Schedule() {
     loadMovieDetails();
   }, [listings]);
 
-  // Generate date tabs (Today + next 6 days)
-  useEffect(() => {
-    const generateDateTabs = () => {
-      const tabs = [];
-      const today = new Date();
-      const dayNames = ['Chủ nhật', 'Thứ hai', 'Thứ ba', 'Thứ tư', 'Thứ năm', 'Thứ sáu', 'Thứ bảy'];
-      
-      for (let i = 0; i < 7; i++) {
-        const dateObj = new Date(today);
-        dateObj.setDate(today.getDate() + i);
-        const dateStr = dateObj.toISOString().split('T')[0];
-        const dayName = i === 0 ? 'Hôm nay' : dayNames[dateObj.getDay()];
-        const dayNumber = dateObj.getDate();
-        const month = dateObj.getMonth() + 1;
-        
-        tabs.push({
-          date: dateStr,
-          label: i === 0 ? 'Hôm nay' : dayName,
-          dayNumber,
-          month,
-          fullDate: dateObj
-        });
-      }
-      
-      setDateTabs(tabs);
-    };
-    
-    generateDateTabs();
-  }, []);
-
   // Group by cinema instead of movie
   const cinemaGroups = useMemo(() => {
     const cinemaMap = new Map();
@@ -269,6 +215,11 @@ export default function Schedule() {
     listings.forEach((item) => {
       // If a movie filter is set, only process listings for that movie
       if (selectedMovieId && item.movieId !== selectedMovieId) {
+        return;
+      }
+
+      const showtimeDate = item.startTime ? toDateKey(item.startTime) : null;
+      if (date && showtimeDate !== date) {
         return;
       }
 
@@ -302,9 +253,6 @@ export default function Schedule() {
       const roomTypePart = formatParts[0] || formatLabel;
       const languagePart = formatParts[1] || '';
       
-      // Get showtime date
-      const showtimeDate = item.startTime ? new Date(item.startTime).toISOString().split('T')[0] : null;
-      
       cinema.movies.get(movieKey).showtimes.push({
         id: item.showtimeId,
         label: formatTime(item.startTime),
@@ -332,32 +280,14 @@ export default function Schedule() {
           .filter((movie) => movie.showtimes.length > 0),
       }))
       .filter((cinema) => cinema.movies.length > 0);
-  }, [listings, movieDetails, movie]);
+  }, [listings, movieDetails, movie, date]);
 
-  const movieOptions = options.movies || [];
-  const cinemaOptions = options.cinemas || [];
   const isLoading = optionsLoading || listingsLoading;
   const hasData = cinemaGroups.length > 0;
-  const placeholderPoster = '/src/assets/images/drive-my-car.jpg';
 
-  // Get selected date for a cinema (default to first available date or today)
-  const getCinemaSelectedDate = (cinemaId) => {
-    return selectedDates.get(cinemaId) || dateTabs[0]?.date || date;
-  };
-
-  // Set selected date for a cinema
-  const setCinemaSelectedDate = (cinemaId, selectedDate) => {
-    setSelectedDates(prev => {
-      const newMap = new Map(prev);
-      newMap.set(cinemaId, selectedDate);
-      return newMap;
-    });
-  };
-
-  // Filter showtimes by date for a cinema
   const getShowtimesForDate = (showtimes, selectedDate) => {
     if (!selectedDate) return showtimes;
-    return showtimes.filter(st => st.date === selectedDate);
+    return showtimes.filter((st) => st.date === selectedDate);
   };
   
   // Handle showtime click - check age rating and show confirmation if needed
@@ -541,9 +471,15 @@ export default function Schedule() {
                   });
                 });
                 const sortedDates = Array.from(availableDates).sort();
-                const cinemaDateTabs = dateTabs.filter(tab => availableDates.has(tab.date)).sort((a, b) => 
-                  new Date(a.date) - new Date(b.date)
-                );
+                let cinemaDateTabs = sortedDates.map((dateStr) => buildDateTab(dateStr));
+
+                // Khi đã chọn ngày cụ thể → chỉ hiển thị cột ngày đó
+                if (date) {
+                  cinemaDateTabs = cinemaDateTabs.filter((tab) => tab.date === date);
+                  if (cinemaDateTabs.length === 0 && availableDates.has(date)) {
+                    cinemaDateTabs = [buildDateTab(date)];
+                  }
+                }
                 
                 return (
                   <div 

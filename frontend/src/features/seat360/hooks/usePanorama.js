@@ -33,7 +33,8 @@ export function usePanorama({ previewSeatId, enabled }) {
       await panoramaLoader.init(containerRef.current);
       initializedRef.current = true;
       setIsReady(true);
-      await loadScene(CENTER_PANORAMA_KEY, true);
+      const initialKey = previewSeatId || CENTER_PANORAMA_KEY;
+      await loadScene(initialKey, initialKey === CENTER_PANORAMA_KEY);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Không thể khởi tạo viewer');
       initializedRef.current = false;
@@ -41,7 +42,7 @@ export function usePanorama({ previewSeatId, enabled }) {
     } finally {
       setIsLoading(false);
     }
-  }, [loadScene]);
+  }, [loadScene, previewSeatId]);
 
   const goToCenter = useCallback(async () => {
     await loadScene(CENTER_PANORAMA_KEY, true);

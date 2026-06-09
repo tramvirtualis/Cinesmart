@@ -5,10 +5,10 @@ export const useSeat360Store = create((set) => ({
   isOpen: false,
   previewSeatId: CENTER_PANORAMA_KEY,
 
-  open: () =>
+  open: (seatId) =>
     set({
       isOpen: true,
-      previewSeatId: CENTER_PANORAMA_KEY,
+      previewSeatId: seatId || CENTER_PANORAMA_KEY,
     }),
 
   close: () =>
