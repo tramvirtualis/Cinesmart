@@ -439,7 +439,7 @@ export default function BookTicket() {
             roomId: roomResult.data.roomId,
             roomName: roomResult.data.roomName,
             roomType: cinemaRoomService.mapRoomTypeFromBackend(roomResult.data.roomType), // Map TYPE_2D -> 2D
-            panoramaType: cinemaRoomService.mapPanoramaTypeFromBackend(roomResult.data.panoramaType),
+            hasPanorama: roomResult.data.hasPanorama === true,
             cinemaComplexId: roomResult.data.cinemaComplexId,
             cinemaComplexName: roomResult.data.cinemaComplexName,
             rows: roomResult.data.rows,

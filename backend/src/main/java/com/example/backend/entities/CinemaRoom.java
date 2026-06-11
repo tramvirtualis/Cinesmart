@@ -3,7 +3,6 @@ package com.example.backend.entities;
 import jakarta.persistence.*;
 import lombok.*;
 import java.util.List;
-import com.example.backend.entities.enums.PanoramaType;
 import com.example.backend.entities.enums.RoomType;
 
 @Entity
@@ -24,9 +23,17 @@ public class CinemaRoom {
     @Enumerated(EnumType.STRING)
     private RoomType roomType;
 
-    @Enumerated(EnumType.STRING)
-    @Builder.Default
-    private PanoramaType panoramaType = PanoramaType.NONE;
+
+    @Column(name = "has_panorama")
+    private Boolean hasPanorama = false;
+
+    public Boolean getHasPanorama() {
+        return hasPanorama;
+    }
+
+    public void setHasPanorama(Boolean hasPanorama) {
+        this.hasPanorama = hasPanorama;
+    }
 
     @ManyToOne
     @JoinColumn(name = "cinema_complex_id")

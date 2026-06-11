@@ -90,6 +90,7 @@ export default function Seat360Modal({
               <PanoramaViewer
                 previewSeatId={previewSeatId}
                 enabled={isOpen}
+                roomType={room.roomType}
                 onGoToCenter={goToCenter}
               />
             </div>

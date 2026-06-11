@@ -9,7 +9,6 @@ import com.example.backend.entities.CinemaRoom;
 import com.example.backend.entities.Seat;
 import com.example.backend.entities.enums.Action;
 import com.example.backend.entities.enums.ObjectType;
-import com.example.backend.entities.enums.PanoramaType;
 import com.example.backend.entities.enums.SeatType;
 import com.example.backend.repositories.CinemaComplexRepository;
 import com.example.backend.repositories.CinemaRoomRepository;
@@ -48,7 +47,7 @@ public class CinemaRoomService {
         CinemaRoom cinemaRoom = CinemaRoom.builder()
             .roomName(createDTO.getRoomName())
             .roomType(createDTO.getRoomType())
-            .panoramaType(resolvePanoramaType(createDTO.getPanoramaType()))
+            .hasPanorama(createDTO.getPanorama() != null && createDTO.getPanorama())
             .cinemaComplex(cinemaComplex)
             .seatLayout(new ArrayList<>())
             .build();
@@ -212,9 +211,6 @@ public class CinemaRoomService {
         return String.valueOf(rowChar);
     }
 
-    private PanoramaType resolvePanoramaType(PanoramaType raw) {
-        return raw != null ? raw : PanoramaType.NONE;
-    }
 
     /** Lưới đầy đủ rows×cols — không lối đi / ô trống. */
     private Set<String> computeFullGridSeatKeys(int rows, int cols) {
@@ -313,13 +309,17 @@ public class CinemaRoomService {
             throw new RuntimeException("Không thể thay đổi số hàng/cột vì đã có vé được đặt và thanh toán. Vui lòng liên hệ quản trị viên để xử lý.");
         }
 
-        if (hasPaidTickets && roomTypeChanged) {
-            throw new RuntimeException("Không thể thay đổi loại phòng chiếu vì đã có vé được đặt và thanh toán. Vui lòng liên hệ quản trị viên để xử lý.");
+        boolean roomNameChanged = !room.getRoomName().equals(updateDTO.getRoomName());
+
+        if (hasPaidTickets && (roomTypeChanged || roomNameChanged)) {
+            String errorMsg = roomTypeChanged ? 
+                "Không thể thay đổi loại phòng chiếu vì đã có vé được đặt." : 
+                "Không thể thay đổi tên phòng chiếu vì đã có vé được đặt.";
+            throw new RuntimeException(errorMsg);
         }
 
-        // Panorama luôn được cập nhật — không phụ thuộc đặt chỗ
         room.setRoomName(updateDTO.getRoomName());
-        room.setPanoramaType(resolvePanoramaType(updateDTO.getPanoramaType()));
+        room.setHasPanorama(updateDTO.getPanorama() != null && updateDTO.getPanorama());
 
         if (!hasPaidTickets) {
             room.setRoomType(updateDTO.getRoomType());
@@ -536,7 +536,7 @@ public class CinemaRoomService {
             .roomId(room.getRoomId())
             .roomName(room.getRoomName())
             .roomType(room.getRoomType())
-            .panoramaType(room.getPanoramaType() != null ? room.getPanoramaType() : PanoramaType.NONE)
+            .panorama(room.getHasPanorama() != null && room.getHasPanorama())
             .cinemaComplexId(room.getCinemaComplex().getComplexId())
             .cinemaComplexName(room.getCinemaComplex().getName())
             .rows(rows)

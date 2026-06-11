@@ -64,16 +64,12 @@ const mapRoomTypeFromBackend = (roomType) => {
   return mapping[roomType] || roomType;
 };
 
-const mapPanoramaTypeFromBackend = (panoramaType) => {
-  if (!panoramaType) return 'NONE';
-  return panoramaType === 'NORMAL' ? 'NORMAL' : 'NONE';
-};
 
 const mapRoomFromBackend = (room) => ({
   roomId: room.roomId,
   roomName: room.roomName,
   roomType: mapRoomTypeFromBackend(room.roomType),
-  panoramaType: mapPanoramaTypeFromBackend(room.panoramaType),
+  hasPanorama: room.hasPanorama,
   rows: room.rows,
   cols: room.cols,
   seats: (room.seats || []).map((seat) => ({
@@ -84,7 +80,9 @@ const mapRoomFromBackend = (room) => ({
   })),
 });
 
-export const isPanoramaEnabled = (room) => room?.panoramaType === 'NORMAL';
+export const isPanoramaEnabled = (room) => {
+  return room?.hasPanorama === true;
+};
 
 export const cinemaRoomService = {
   /**
@@ -97,7 +95,7 @@ export const cinemaRoomService = {
       const payload = {
         roomName: roomData.roomName,
         roomType: mapRoomTypeToBackend(roomData.roomType),
-        panoramaType: roomData.panoramaType || 'NONE',
+        hasPanorama: roomData.hasPanorama,
         cinemaComplexId: roomData.cinemaComplexId,
         rows: roomData.rows,
         cols: roomData.cols,
@@ -171,7 +169,7 @@ export const cinemaRoomService = {
       const payload = {
         roomName: roomData.roomName,
         roomType: mapRoomTypeToBackend(roomData.roomType),
-        panoramaType: roomData.panoramaType || 'NONE',
+        hasPanorama: roomData.hasPanorama,
         cinemaComplexId: roomData.cinemaComplexId,
         rows: roomData.rows,
         cols: roomData.cols,
@@ -225,7 +223,7 @@ export const cinemaRoomService = {
       const payload = {
         roomName: roomData.roomName,
         roomType: mapRoomTypeToBackend(roomData.roomType),
-        panoramaType: roomData.panoramaType || 'NONE',
+        hasPanorama: roomData.hasPanorama,
         cinemaComplexId: roomData.cinemaComplexId,
         rows: roomData.rows,
         cols: roomData.cols,
@@ -278,7 +276,7 @@ export const cinemaRoomService = {
       const payload = {
         roomName: roomData.roomName,
         roomType: mapRoomTypeToBackend(roomData.roomType),
-        panoramaType: roomData.panoramaType || 'NONE',
+        hasPanorama: roomData.hasPanorama,
         cinemaComplexId: roomData.cinemaComplexId,
         rows: roomData.rows,
         cols: roomData.cols,
@@ -508,7 +506,6 @@ export const cinemaRoomService = {
   // Helper để map RoomType / PanoramaType
   mapRoomTypeToBackend,
   mapRoomTypeFromBackend,
-  mapPanoramaTypeFromBackend,
   mapRoomFromBackend,
 };
 

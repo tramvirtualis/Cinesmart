@@ -1,6 +1,5 @@
 package com.example.backend.dtos;
 
-import com.example.backend.entities.enums.PanoramaType;
 import com.example.backend.entities.enums.RoomType;
 import java.util.List;
 
@@ -26,8 +25,10 @@ public class CreateCinemaRoomDTO {
     
     @NotNull(message = "Loại phòng không được để trống")
     private RoomType roomType;
+    
+    @com.fasterxml.jackson.annotation.JsonProperty("hasPanorama")
+    private Boolean panorama;
 
-    private PanoramaType panoramaType;
     
     @NotNull(message = "Cinema complex ID không được để trống")
     private Long cinemaComplexId;

@@ -10,21 +10,24 @@ import { panoramaCache } from './panoramaCache';
 let manifestPromise = null;
 let sceneIndex = null;
 
-export async function loadPanoramaManifest() {
-  if (!manifestPromise) {
-    manifestPromise = fetch(MANIFEST_URL)
-      .then((res) => {
-        if (!res.ok) {
-          throw new Error(`Không thể tải dữ liệu panorama (${res.status})`);
-        }
-        return res.json();
-      })
-      .then((data) => {
-        sceneIndex = new Map(data.scenes.map((s) => [s.name, s]));
-        return data;
-      });
+export async function loadPanoramaManifest(roomType = '2D') {
+  // Quy tắc build URL dựa trên RoomType
+  let baseUrl = '/cinema_room/app-files'; // Mặc định 2D
+  
+  if (roomType === '3D') {
+    baseUrl = '/cinema_room/3d-files'; // VD trong tương lai
+  } else if (roomType === 'DELUXE') {
+    baseUrl = '/cinema_room/deluxe-files'; // VD trong tương lai
   }
-  return manifestPromise;
+
+  const manifestUrl = `${baseUrl}/panorama-data.json`;
+  const response = await fetch(manifestUrl);
+  if (!response.ok) {
+    throw new Error(`Không thể tải dữ liệu panorama cho phòng ${roomType} (${response.status})`);
+  }
+  const data = await response.json();
+  sceneIndex = new Map(data.scenes.map((s) => [s.name, s]));
+  return { data, baseUrl };
 }
 
 export function getSceneDataByKey(key) {
@@ -44,8 +47,10 @@ export class PanoramaLoader {
     this.manifest = null;
   }
 
-  async init(container) {
-    this.manifest = await loadPanoramaManifest();
+  async init(container, roomType) {
+    const { data, baseUrl } = await loadPanoramaManifest(roomType);
+    this.manifest = data;
+    this.baseUrl = baseUrl;
 
     if (this.viewer) {
       this.viewer.destroy();
@@ -68,10 +73,6 @@ export class PanoramaLoader {
       throw new Error('Panorama viewer chưa được khởi tạo');
     }
 
-    if (!this.manifest) {
-      this.manifest = await loadPanoramaManifest();
-    }
-
     const sceneData = getSceneDataByKey(key);
     if (!sceneData) {
       throw new Error(`Không tìm thấy panorama cho ghế "${key}"`);
@@ -80,7 +81,7 @@ export class PanoramaLoader {
     let cached = panoramaCache.get(key);
 
     if (!cached) {
-      const urlPrefix = `${TILES_BASE_URL}/${sceneData.id}`;
+      const urlPrefix = `${this.baseUrl}/tiles/${sceneData.id}`;
       const source = Marzipano.ImageUrlSource.fromString(
         `${urlPrefix}/{z}/{f}/{y}/{x}.jpg`,
         { cubeMapPreviewUrl: `${urlPrefix}/preview.jpg` }

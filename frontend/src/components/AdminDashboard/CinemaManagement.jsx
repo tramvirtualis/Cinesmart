@@ -48,7 +48,7 @@ function CinemaManagement({ cinemas: initialCinemasList, onCinemasChange }) {
   const [roomFormData, setRoomFormData] = useState({
     roomName: '',
     roomType: '2D',
-    panoramaType: 'NONE',
+    hasPanorama: false,
     rows: 10,
     cols: 12,
     emptyCells: [],
@@ -369,7 +369,7 @@ function CinemaManagement({ cinemas: initialCinemasList, onCinemasChange }) {
   // Handle room operations
   const handleAddRoom = (cinema) => {
     setEditingRoom(null);
-    setRoomFormData({ roomName: '', roomType: '2D', panoramaType: 'NONE', rows: 10, cols: 12, emptyCells: [] });
+    setRoomFormData({ roomName: '', roomType: '2D', hasPanorama: false, rows: 10, cols: 12, emptyCells: [] });
     setSelectedCinema(cinema);
     setRoomHasBookings(false);
     setShowRoomModal(true);
@@ -381,7 +381,7 @@ function CinemaManagement({ cinemas: initialCinemasList, onCinemasChange }) {
     setRoomFormData({
       roomName: room.roomName,
       roomType: room.roomType,
-      panoramaType: room.panoramaType || 'NONE',
+      hasPanorama: room.hasPanorama || false,
       rows: room.rows,
       cols: room.cols,
       emptyCells: computeUserExtraEmptyFromRoom(room),
@@ -453,7 +453,7 @@ function CinemaManagement({ cinemas: initialCinemasList, onCinemasChange }) {
       const roomData = {
         roomName: roomFormData.roomName.trim(),
         roomType: lockedByBookings ? editingRoom.roomType : roomFormData.roomType,
-        panoramaType: roomFormData.panoramaType || 'NONE',
+        hasPanorama: Boolean(roomFormData.hasPanorama),
         cinemaComplexId: selectedCinema.complexId,
         rows: lockedByBookings ? editingRoom.rows : rowsN,
         cols: lockedByBookings ? editingRoom.cols : colsN,
@@ -1034,13 +1034,31 @@ function CinemaManagement({ cinemas: initialCinemasList, onCinemasChange }) {
                       value={roomFormData.roomName}
                       onChange={(e) => setRoomFormData({ ...roomFormData, roomName: e.target.value })}
                       placeholder="VD: Phòng 1"
+                      disabled={editingRoom && (roomHasBookings || checkingBookings)}
+                      style={{
+                        opacity: editingRoom && (roomHasBookings || checkingBookings) ? 0.6 : 1,
+                        cursor: editingRoom && (roomHasBookings || checkingBookings) ? 'not-allowed' : 'text'
+                      }}
                     />
                   </div>
                   <div className="movie-form__group">
                     <label>Loại phòng <span className="required">*</span></label>
                     <select
                       value={roomFormData.roomType}
-                      onChange={(e) => setRoomFormData({ ...roomFormData, roomType: e.target.value })}
+                      disabled={editingRoom && (roomHasBookings || checkingBookings)}
+                      style={{
+                        opacity: editingRoom && (roomHasBookings || checkingBookings) ? 0.6 : 1,
+                        cursor: editingRoom && (roomHasBookings || checkingBookings) ? 'not-allowed' : 'pointer'
+                      }}
+                      onChange={(e) => {
+                        const newType = e.target.value;
+                        setRoomFormData(prev => ({
+                          ...prev,
+                          roomType: newType,
+                          // Nếu không phải 2D thì tắt panorama (tạm thời)
+                          hasPanorama: newType === '2D' ? prev.hasPanorama : false
+                        }));
+                      }}
                     >
                       {roomTypes.map(type => (
                         <option key={type} value={type}>{type}</option>
@@ -1051,13 +1069,31 @@ function CinemaManagement({ cinemas: initialCinemasList, onCinemasChange }) {
                 <div className="movie-form__row">
                   <div className="movie-form__group">
                     <label>Panorama 360°</label>
-                    <select
-                      value={roomFormData.panoramaType}
-                      onChange={(e) => setRoomFormData({ ...roomFormData, panoramaType: e.target.value })}
-                    >
-                      <option value="NONE">Trống</option>
-                      <option value="NORMAL">Mô phỏng 360 độ</option>
-                    </select>
+                    <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
+                      <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8, cursor: roomFormData.roomType === '2D' ? 'pointer' : 'not-allowed', opacity: roomFormData.roomType === '2D' ? 1 : 0.5 }}>
+                        <input
+                          type="radio"
+                          name="roomPanorama"
+                          checked={!roomFormData.hasPanorama}
+                          onChange={() => setRoomFormData({ ...roomFormData, hasPanorama: false })}
+                          disabled={roomFormData.roomType !== '2D'}
+                        />
+                        Không
+                      </label>
+                      <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8, cursor: roomFormData.roomType === '2D' ? 'pointer' : 'not-allowed', opacity: roomFormData.roomType === '2D' ? 1 : 0.5 }}>
+                        <input
+                          type="radio"
+                          name="roomPanorama"
+                          checked={roomFormData.hasPanorama}
+                          onChange={() => setRoomFormData({ ...roomFormData, hasPanorama: true })}
+                          disabled={roomFormData.roomType !== '2D'}
+                        />
+                        Có
+                      </label>
+                    </div>
+                    {roomFormData.roomType !== '2D' && (
+                      <p className="text-xs text-gray-400 mt-1 italic">Chỉ khả dụng cho phòng 2D</p>
+                    )}
                   </div>
                 </div>
                 <div className="movie-form__row">

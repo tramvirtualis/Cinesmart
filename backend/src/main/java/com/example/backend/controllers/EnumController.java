@@ -37,9 +37,6 @@ public class EnumController {
                 .map(Enum::name)
                 .collect(Collectors.toList()));
 
-        enums.put("panoramaTypes", Arrays.stream(PanoramaType.values())
-                .map(Enum::name)
-                .collect(Collectors.toList()));
         
         enums.put("seatTypes", Arrays.stream(SeatType.values())
                 .map(Enum::name)

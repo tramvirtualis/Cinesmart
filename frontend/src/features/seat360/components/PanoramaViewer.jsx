@@ -5,6 +5,7 @@ import { usePanorama } from '../hooks/usePanorama';
 export default function PanoramaViewer({
   previewSeatId,
   enabled,
+  roomType,
   onGoToCenter,
 }) {
   const wrapperRef = useRef(null);
@@ -15,7 +16,7 @@ export default function PanoramaViewer({
     currentLabel,
     goToCenter,
     retry,
-  } = usePanorama({ previewSeatId, enabled });
+  } = usePanorama({ previewSeatId, enabled, roomType });
 
   const handleGoToCenter = useCallback(async () => {
     await goToCenter();

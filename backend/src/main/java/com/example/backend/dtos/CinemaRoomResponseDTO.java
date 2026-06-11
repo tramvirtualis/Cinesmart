@@ -1,6 +1,5 @@
 package com.example.backend.dtos;
 
-import com.example.backend.entities.enums.PanoramaType;
 import com.example.backend.entities.enums.RoomType;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -21,7 +20,8 @@ public class CinemaRoomResponseDTO {
     private Long roomId;
     private String roomName;
     private RoomType roomType;
-    private PanoramaType panoramaType;
+    @com.fasterxml.jackson.annotation.JsonProperty("hasPanorama")
+    private Boolean panorama;
     private Long cinemaComplexId;
     private String cinemaComplexName;
     private Integer rows;
