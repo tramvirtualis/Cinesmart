@@ -793,7 +793,7 @@ export default function BookTicket() {
     // Đồng bộ panorama khi modal 360° đang mở (chỉ phòng có panorama NORMAL)
     const { isOpen, setPreviewSeat } = useSeat360Store.getState();
     if (isOpen && isPanoramaEnabled(selectedRoom)) {
-      loadPanoramaManifest()
+      loadPanoramaManifest(selectedRoom.roomType)
         .then(() => {
           if (hasPanoramaForSeat(seatId)) {
             setPreviewSeat(seatId);
@@ -810,7 +810,7 @@ export default function BookTicket() {
 
     if (isPanoramaEnabled(selectedRoom) && lastSelected) {
       try {
-        await loadPanoramaManifest();
+        await loadPanoramaManifest(selectedRoom.roomType);
         if (hasPanoramaForSeat(lastSelected)) {
           seatToPreview = lastSelected;
         }

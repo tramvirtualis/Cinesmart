@@ -1,31 +1,48 @@
 import * as Marzipano from 'marzipano';
 import {
   CENTER_PANORAMA_KEY,
-  MANIFEST_URL,
+  PANORAMA_BASE_URL_DEFAULT,
+  PANORAMA_BASE_URL_DELUXE,
   SCENE_TRANSITION_MS,
-  TILES_BASE_URL,
 } from '../constants/panoramaConstants';
 import { panoramaCache } from './panoramaCache';
 
-let manifestPromise = null;
 let sceneIndex = null;
+let cachedManifest = { roomType: null, data: null, baseUrl: null };
+
+export function getPanoramaBaseUrl(roomType = '2D') {
+  const type = String(roomType || '2D').toUpperCase();
+  if (type === 'DELUXE') {
+    return PANORAMA_BASE_URL_DELUXE;
+  }
+  return PANORAMA_BASE_URL_DEFAULT;
+}
+
+async function fetchPanoramaData(baseUrl) {
+  const response = await fetch(`${baseUrl}/data.js`);
+  if (!response.ok) {
+    throw new Error(`Không thể tải dữ liệu panorama (${response.status})`);
+  }
+
+  const text = await response.text();
+  const jsonText = text
+    .replace(/^\s*var\s+APP_DATA\s*=\s*/, '')
+    .replace(/;\s*$/, '');
+
+  return JSON.parse(jsonText);
+}
 
 export async function loadPanoramaManifest(roomType = '2D') {
-  // Quy tắc build URL dựa trên RoomType
-  let baseUrl = '/cinema_room/app-files'; // Mặc định 2D
-  
-  if (roomType === '3D') {
-    baseUrl = '/cinema_room/3d-files'; // VD trong tương lai
-  } else if (roomType === 'DELUXE') {
-    baseUrl = '/cinema_room/deluxe-files'; // VD trong tương lai
+  const normalizedType = String(roomType || '2D').toUpperCase();
+  const baseUrl = getPanoramaBaseUrl(normalizedType);
+
+  if (cachedManifest.roomType === normalizedType && cachedManifest.data) {
+    sceneIndex = new Map(cachedManifest.data.scenes.map((s) => [s.name, s]));
+    return { data: cachedManifest.data, baseUrl: cachedManifest.baseUrl };
   }
 
-  const manifestUrl = `${baseUrl}/panorama-data.json`;
-  const response = await fetch(manifestUrl);
-  if (!response.ok) {
-    throw new Error(`Không thể tải dữ liệu panorama cho phòng ${roomType} (${response.status})`);
-  }
-  const data = await response.json();
+  const data = await fetchPanoramaData(baseUrl);
+  cachedManifest = { roomType: normalizedType, data, baseUrl };
   sceneIndex = new Map(data.scenes.map((s) => [s.name, s]));
   return { data, baseUrl };
 }
@@ -45,12 +62,16 @@ export class PanoramaLoader {
     this.viewer = null;
     this.currentKey = null;
     this.manifest = null;
+    this.baseUrl = null;
+    this.roomType = null;
   }
 
   async init(container, roomType) {
-    const { data, baseUrl } = await loadPanoramaManifest(roomType);
+    const normalizedType = String(roomType || '2D').toUpperCase();
+    const { data, baseUrl } = await loadPanoramaManifest(normalizedType);
     this.manifest = data;
     this.baseUrl = baseUrl;
+    this.roomType = normalizedType;
 
     if (this.viewer) {
       this.viewer.destroy();
@@ -138,7 +159,6 @@ export class PanoramaLoader {
       this.viewer.destroy();
       this.viewer = null;
     }
-    // Scene cache is tied to a specific viewer instance — must reset on close
     panoramaCache.clear();
     this.currentKey = null;
   }

@@ -1055,8 +1055,6 @@ function CinemaManagement({ cinemas: initialCinemasList, onCinemasChange }) {
                         setRoomFormData(prev => ({
                           ...prev,
                           roomType: newType,
-                          // Nếu không phải 2D thì tắt panorama (tạm thời)
-                          hasPanorama: newType === '2D' ? prev.hasPanorama : false
                         }));
                       }}
                     >
@@ -1070,30 +1068,25 @@ function CinemaManagement({ cinemas: initialCinemasList, onCinemasChange }) {
                   <div className="movie-form__group">
                     <label>Panorama 360°</label>
                     <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
-                      <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8, cursor: roomFormData.roomType === '2D' ? 'pointer' : 'not-allowed', opacity: roomFormData.roomType === '2D' ? 1 : 0.5 }}>
+                      <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
                         <input
                           type="radio"
                           name="roomPanorama"
                           checked={!roomFormData.hasPanorama}
                           onChange={() => setRoomFormData({ ...roomFormData, hasPanorama: false })}
-                          disabled={roomFormData.roomType !== '2D'}
                         />
                         Không
                       </label>
-                      <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8, cursor: roomFormData.roomType === '2D' ? 'pointer' : 'not-allowed', opacity: roomFormData.roomType === '2D' ? 1 : 0.5 }}>
+                      <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
                         <input
                           type="radio"
                           name="roomPanorama"
                           checked={roomFormData.hasPanorama}
                           onChange={() => setRoomFormData({ ...roomFormData, hasPanorama: true })}
-                          disabled={roomFormData.roomType !== '2D'}
                         />
                         Có
                       </label>
                     </div>
-                    {roomFormData.roomType !== '2D' && (
-                      <p className="text-xs text-gray-400 mt-1 italic">Chỉ khả dụng cho phòng 2D</p>
-                    )}
                   </div>
                 </div>
                 <div className="movie-form__row">

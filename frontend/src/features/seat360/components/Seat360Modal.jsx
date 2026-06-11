@@ -20,7 +20,11 @@ export default function Seat360Modal({
   const goToCenter = useSeat360Store((s) => s.goToCenter);
 
   const showPanorama = isPanoramaEnabled(room);
-  const { handleSeatSelect } = useSeatSelection({ onSeatClick, enablePanorama: showPanorama });
+  const { handleSeatSelect } = useSeatSelection({
+    onSeatClick,
+    enablePanorama: showPanorama,
+    roomType: room?.roomType,
+  });
 
   const handleClose = useCallback(() => {
     close();

@@ -2,7 +2,7 @@ import { useCallback } from 'react';
 import { hasPanoramaForSeat, loadPanoramaManifest } from '../services/panoramaLoader';
 import { useSeat360Store } from '../store/seat360Store';
 
-export function useSeatSelection({ onSeatClick, enablePanorama = true }) {
+export function useSeatSelection({ onSeatClick, enablePanorama = true, roomType = '2D' }) {
   const setPreviewSeat = useSeat360Store((s) => s.setPreviewSeat);
 
   const handleSeatSelect = useCallback(
@@ -12,7 +12,7 @@ export function useSeatSelection({ onSeatClick, enablePanorama = true }) {
       if (!enablePanorama) return;
 
       try {
-        await loadPanoramaManifest();
+        await loadPanoramaManifest(roomType);
         if (hasPanoramaForSeat(seatId)) {
           setPreviewSeat(seatId);
         }
@@ -20,7 +20,7 @@ export function useSeatSelection({ onSeatClick, enablePanorama = true }) {
         // Manifest load failed — seat selection still works
       }
     },
-    [onSeatClick, setPreviewSeat, enablePanorama]
+    [onSeatClick, setPreviewSeat, enablePanorama, roomType]
   );
 
   return { handleSeatSelect };
