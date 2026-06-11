@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect } from 'react';
+import { isPanoramaEnabled } from '../../../services/cinemaRoomService';
 import { useSeatSelection } from '../hooks/useSeatSelection';
 import { useSeat360Store } from '../store/seat360Store';
 import PanoramaViewer from './PanoramaViewer';
@@ -18,7 +19,8 @@ export default function Seat360Modal({
   const close = useSeat360Store((s) => s.close);
   const goToCenter = useSeat360Store((s) => s.goToCenter);
 
-  const { handleSeatSelect } = useSeatSelection({ onSeatClick });
+  const showPanorama = isPanoramaEnabled(room);
+  const { handleSeatSelect } = useSeatSelection({ onSeatClick, enablePanorama: showPanorama });
 
   const handleClose = useCallback(() => {
     close();
@@ -62,7 +64,7 @@ export default function Seat360Modal({
             </svg>
             <div className="min-w-0">
               <h2 className="truncate text-base font-semibold text-white sm:text-lg">
-                Xem góc nhìn ghế 360°
+                {showPanorama ? 'Xem góc nhìn ghế 360°' : 'Sơ đồ ghế'}
               </h2>
               {cinemaName && (
                 <p className="truncate text-xs text-gray-400">{cinemaName}</p>
@@ -81,19 +83,19 @@ export default function Seat360Modal({
           </button>
         </div>
 
-        {/* Body: 70/30 desktop, stacked mobile */}
+        {/* Body: panorama + seat map (hoặc chỉ sơ đồ ghế khi NONE) */}
         <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
-          {/* Panorama — 70% */}
-          <div className="h-[45vh] min-h-[240px] shrink-0 lg:h-auto lg:min-h-0 lg:min-w-0 lg:flex-1">
-            <PanoramaViewer
-              previewSeatId={previewSeatId}
-              enabled={isOpen}
-              onGoToCenter={goToCenter}
-            />
-          </div>
+          {showPanorama && (
+            <div className="h-[45vh] min-h-[240px] shrink-0 lg:h-auto lg:min-h-0 lg:min-w-0 lg:flex-1">
+              <PanoramaViewer
+                previewSeatId={previewSeatId}
+                enabled={isOpen}
+                onGoToCenter={goToCenter}
+              />
+            </div>
+          )}
 
-          {/* Seat map — 32% */}
-          <div className="flex min-h-0 flex-1 flex-col border-t border-white/10 bg-gray-900/50 p-3 sm:p-4 lg:w-[32%] lg:min-w-[280px] lg:max-w-[400px] lg:border-l lg:border-t-0">
+          <div className={`flex min-h-0 flex-1 flex-col bg-gray-900/50 p-3 sm:p-4 ${showPanorama ? 'border-t border-white/10 lg:w-[32%] lg:min-w-[280px] lg:max-w-[400px] lg:border-l lg:border-t-0' : ''}`}>
             <SeatMapPanel
               room={room}
               selectedSeats={selectedSeats}

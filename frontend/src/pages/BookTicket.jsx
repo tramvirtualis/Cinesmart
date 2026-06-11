@@ -4,7 +4,7 @@ import Header from '../components/Header.jsx';
 import Footer from '../components/Footer.jsx';
 import AgeConfirmationModal from '../components/AgeConfirmationModal.jsx';
 import ConfirmModal from '../components/ConfirmModal.jsx';
-import { cinemaRoomService } from '../services/cinemaRoomService';
+import { cinemaRoomService, isPanoramaEnabled } from '../services/cinemaRoomService';
 import showtimeService from '../services/showtimeService';
 import { movieService } from '../services/movieService';
 import { cinemaComplexService } from '../services/cinemaComplexService';
@@ -12,6 +12,7 @@ import { websocketService } from '../services/websocketService';
 import Seat360Modal from '../features/seat360/components/Seat360Modal';
 import { hasPanoramaForSeat, loadPanoramaManifest } from '../features/seat360/services/panoramaLoader';
 import { useSeat360Store } from '../features/seat360/store/seat360Store';
+import { getSeatsForRow } from '../components/AdminDashboard/utils';
 
 // Generate seats for a room
 function generateSeats(rows, cols) {
@@ -438,6 +439,7 @@ export default function BookTicket() {
             roomId: roomResult.data.roomId,
             roomName: roomResult.data.roomName,
             roomType: cinemaRoomService.mapRoomTypeFromBackend(roomResult.data.roomType), // Map TYPE_2D -> 2D
+            panoramaType: cinemaRoomService.mapPanoramaTypeFromBackend(roomResult.data.panoramaType),
             cinemaComplexId: roomResult.data.cinemaComplexId,
             cinemaComplexName: roomResult.data.cinemaComplexName,
             rows: roomResult.data.rows,
@@ -788,9 +790,9 @@ export default function BookTicket() {
       websocketService.sendSeatSelection(selectedShowtime.showtimeId, seatId, action);
     }
 
-    // Đồng bộ panorama khi modal 360° đang mở
+    // Đồng bộ panorama khi modal 360° đang mở (chỉ phòng có panorama NORMAL)
     const { isOpen, setPreviewSeat } = useSeat360Store.getState();
-    if (isOpen) {
+    if (isOpen && isPanoramaEnabled(selectedRoom)) {
       loadPanoramaManifest()
         .then(() => {
           if (hasPanoramaForSeat(seatId)) {
@@ -806,7 +808,7 @@ export default function BookTicket() {
       selectedSeats.length > 0 ? selectedSeats[selectedSeats.length - 1] : null;
     let seatToPreview = null;
 
-    if (lastSelected) {
+    if (isPanoramaEnabled(selectedRoom) && lastSelected) {
       try {
         await loadPanoramaManifest();
         if (hasPanoramaForSeat(lastSelected)) {
@@ -822,11 +824,6 @@ export default function BookTicket() {
 
   const renderSeatLayout = () => {
     if (!selectedRoom) return null;
-
-    const seatMap = new Map();
-    selectedRoom.seats.forEach(seat => {
-      seatMap.set(`${seat.row}-${seat.column}`, seat);
-    });
 
     const rowChars = [];
     for (let i = 0; i < selectedRoom.rows; i++) {
@@ -846,7 +843,7 @@ export default function BookTicket() {
               <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
               <circle cx="12" cy="12" r="3" />
             </svg>
-            Xem góc nhìn ghế 360°
+            {isPanoramaEnabled(selectedRoom) ? 'Xem góc nhìn ghế 360°' : 'Xem sơ đồ ghế'}
           </button>
         </div>
 
@@ -854,24 +851,8 @@ export default function BookTicket() {
           {rowChars.map(row => (
             <div key={row} className="seat-layout__row">
               <div className="seat-layout__row-label">{row}</div>
-              <div
-                className="seat-layout__seats seat-layout__seats--fixed-cols"
-                style={{
-                  gridTemplateColumns: `repeat(${selectedRoom.cols}, 44px)`,
-                }}
-              >
-                {Array.from({ length: selectedRoom.cols }, (_, ci) => {
-                  const col = ci + 1;
-                  const seat = seatMap.get(`${row}-${col}`);
-                  if (!seat) {
-                    return (
-                      <div
-                        key={`${row}-${col}-empty`}
-                        className="seat-layout__slot--empty"
-                        aria-hidden
-                      />
-                    );
-                  }
+              <div className="seat-layout__seats">
+                {getSeatsForRow(selectedRoom, row).map((seat) => {
                   const isCouple = seat.type === 'COUPLE';
                   const isBooked = bookedSeatsForShowtime.has(seat.seatId);
                   const isSelected = selectedSeats.includes(seat.seatId);

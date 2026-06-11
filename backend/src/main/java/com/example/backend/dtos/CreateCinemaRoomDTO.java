@@ -1,5 +1,6 @@
 package com.example.backend.dtos;
 
+import com.example.backend.entities.enums.PanoramaType;
 import com.example.backend.entities.enums.RoomType;
 import java.util.List;
 
@@ -25,6 +26,8 @@ public class CreateCinemaRoomDTO {
     
     @NotNull(message = "Loại phòng không được để trống")
     private RoomType roomType;
+
+    private PanoramaType panoramaType;
     
     @NotNull(message = "Cinema complex ID không được để trống")
     private Long cinemaComplexId;
@@ -42,5 +45,10 @@ public class CreateCinemaRoomDTO {
      * Lối đi chuẩn và phân loại VIP/Couple khi tạo ghế do server xử lý như layout cũ.
      */
     private List<String> emptyCells;
+
+    /**
+     * Khi true: xóa toàn bộ ghế cũ và tạo lưới mới toàn ghế Thường (dùng khi đổi số hàng/cột).
+     */
+    private Boolean resetLayout;
 }
 
