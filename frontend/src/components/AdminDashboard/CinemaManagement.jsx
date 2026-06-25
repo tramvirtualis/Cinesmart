@@ -1066,7 +1066,7 @@ function CinemaManagement({ cinemas: initialCinemasList, onCinemasChange }) {
                 </div>
                 <div className="movie-form__row">
                   <div className="movie-form__group">
-                    <label>Panorama 360°</label>
+                    <label>Mô phỏng 360°</label>
                     <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
                       <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
                         <input
