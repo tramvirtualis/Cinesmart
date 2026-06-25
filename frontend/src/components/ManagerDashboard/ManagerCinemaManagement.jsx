@@ -1682,11 +1682,6 @@ function ManagerCinemaManagement({ cinemas: initialCinemasList, onCinemasChange,
                     />
                   </div>
                 </div>
-                {!editingRoom && (
-                  <p style={{ fontSize: '13px', color: '#c9c4c5', marginTop: 10, lineHeight: 1.5 }}>
-                    Phòng mới là lưới đầy ghế Thường (hình chữ nhật). Sau khi tạo, mở <strong>sơ đồ ghế</strong> để chỉnh VIP và ghế đôi.
-                  </p>
-                )}
                 {editingRoom && (
                   <div className="movie-form__group">
                     {checkingBookings ? (
