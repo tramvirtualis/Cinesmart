@@ -5,6 +5,7 @@ import { usePanorama } from '../hooks/usePanorama';
 export default function PanoramaViewer({
   previewSeatId,
   enabled,
+  roomType,
   onGoToCenter,
 }) {
   const wrapperRef = useRef(null);
@@ -15,7 +16,7 @@ export default function PanoramaViewer({
     currentLabel,
     goToCenter,
     retry,
-  } = usePanorama({ previewSeatId, enabled });
+  } = usePanorama({ previewSeatId, enabled, roomType });
 
   const handleGoToCenter = useCallback(async () => {
     await goToCenter();
@@ -87,7 +88,9 @@ export default function PanoramaViewer({
               <p className="mb-4 text-xs text-gray-400">{error}</p>
               <p className="mb-4 text-xs text-gray-500">
                 Đảm bảo thư mục tiles đã được đặt tại{' '}
-                <code className="text-gray-400">public/cinema_room/app-files/tiles/</code>
+                <code className="text-gray-400">public/cinemaroom/app-files/tiles/</code>
+                {' '}hoặc{' '}
+                <code className="text-gray-400">public/cinemaroom_deluxe/app-files/tiles/</code>
               </p>
               <button
                 type="button"

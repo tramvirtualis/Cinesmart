@@ -20,6 +20,8 @@ public class CinemaRoomResponseDTO {
     private Long roomId;
     private String roomName;
     private RoomType roomType;
+    @com.fasterxml.jackson.annotation.JsonProperty("hasPanorama")
+    private Boolean panorama;
     private Long cinemaComplexId;
     private String cinemaComplexName;
     private Integer rows;

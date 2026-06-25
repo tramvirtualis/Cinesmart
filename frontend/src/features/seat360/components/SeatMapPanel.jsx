@@ -1,5 +1,6 @@
-import React, { useMemo } from 'react';
+import React from 'react';
 import { CENTER_PANORAMA_KEY } from '../constants/panoramaConstants';
+import { getSeatsForRow } from '../../../components/AdminDashboard/utils';
 import '../styles/seat360-seat-map.css';
 
 export default function SeatMapPanel({
@@ -11,16 +12,6 @@ export default function SeatMapPanel({
   onSeatClick,
   getSeatColor,
 }) {
-  const seatMap = useMemo(() => {
-    const map = new Map();
-    if (room?.seats) {
-      room.seats.forEach((seat) => {
-        map.set(`${seat.row}-${seat.column}`, seat);
-      });
-    }
-    return map;
-  }, [room]);
-
   if (!room) {
     return (
       <div className="flex h-full items-center justify-center text-sm text-gray-400">
@@ -55,26 +46,8 @@ export default function SeatMapPanel({
             {rowChars.map((row) => (
               <div key={row} className="seat-layout__row">
                 <div className="seat-layout__row-label">{row}</div>
-                <div
-                  className="seat-layout__seats seat-layout__seats--fixed-cols"
-                  style={{
-                    gridTemplateColumns: `repeat(${room.cols}, minmax(0, 1fr))`,
-                  }}
-                >
-                  {Array.from({ length: room.cols }, (_, ci) => {
-                    const col = ci + 1;
-                    const seat = seatMap.get(`${row}-${col}`);
-                    if (!seat) {
-                      return (
-                        <div
-                          key={`${row}-${col}-empty`}
-                          className="seat-layout__slot--empty"
-                          aria-hidden
-                        />
-                      );
-                    }
-
-                    const isCouple = seat.type === 'COUPLE';
+                <div className="seat-layout__seats seat-layout__seats--compact">
+                  {getSeatsForRow(room, row).map((seat) => {
                     const isBooked = bookedSeats.has(seat.seatId);
                     const isSelected = selectedSeats.includes(seat.seatId);
                     const isTemporarilySelected =
@@ -86,7 +59,7 @@ export default function SeatMapPanel({
                       <button
                         key={seat.seatId}
                         type="button"
-                        className={`seat-button ${isCouple ? 'seat-button--couple' : ''} ${isBooked ? 'seat-button--booked' : ''} ${isSelected ? 'seat-button--selected' : ''} ${isTemporarilySelected ? 'seat-button--temporarily-selected' : ''} ${isPreviewing ? 'ring-2 ring-amber-400 ring-offset-1 ring-offset-gray-900' : ''}`}
+                        className={`seat-button ${isBooked ? 'seat-button--booked' : ''} ${isSelected ? 'seat-button--selected' : ''} ${isTemporarilySelected ? 'seat-button--temporarily-selected' : ''} ${isPreviewing ? 'ring-2 ring-amber-400 ring-offset-1 ring-offset-gray-900' : ''}`}
                         style={{
                           backgroundColor: getSeatColor(
                             seat.type,

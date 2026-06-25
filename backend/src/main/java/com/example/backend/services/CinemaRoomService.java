@@ -47,6 +47,7 @@ public class CinemaRoomService {
         CinemaRoom cinemaRoom = CinemaRoom.builder()
             .roomName(createDTO.getRoomName())
             .roomType(createDTO.getRoomType())
+            .hasPanorama(createDTO.getPanorama() != null && createDTO.getPanorama())
             .cinemaComplex(cinemaComplex)
             .seatLayout(new ArrayList<>())
             .build();
@@ -210,21 +211,41 @@ public class CinemaRoomService {
         return String.valueOf(rowChar);
     }
 
-    private Set<String> computeSeatPositionKeys(int rows, int cols, List<String> emptyCellsRaw, CinemaRoom roomForWalkwayRule) {
-        boolean addWalk = applyWalkwayAsEmptySlots(roomForWalkwayRule, cols);
-        Set<String> empty = mergeEmptyWithWalkways(emptyCellsRaw, rows, cols, addWalk);
+
+    /** Lưới đầy đủ rows×cols — không lối đi / ô trống. */
+    private Set<String> computeFullGridSeatKeys(int rows, int cols) {
         Set<String> keys = new HashSet<>();
         for (int row = 0; row < rows; row++) {
-            char rowChar = (char) ('A' + row);
-            String rowStr = String.valueOf(rowChar);
+            String rowLabel = rowStr((char) ('A' + row));
             for (int col = 1; col <= cols; col++) {
-                String key = rowStr + col;
-                if (!empty.contains(key)) {
-                    keys.add(key);
-                }
+                keys.add(rowLabel + col);
             }
         }
         return keys;
+    }
+
+    private int currentGridRows(CinemaRoom room) {
+        if (room.getSeatLayout() == null || room.getSeatLayout().isEmpty()) {
+            return 0;
+        }
+        return room.getSeatLayout().stream()
+            .map(Seat::getSeatRow)
+            .filter(row -> row != null && !row.isEmpty())
+            .mapToInt(row -> row.charAt(0) - 'A' + 1)
+            .max()
+            .orElse(0);
+    }
+
+    private int currentGridCols(CinemaRoom room) {
+        if (room.getSeatLayout() == null || room.getSeatLayout().isEmpty()) {
+            return 0;
+        }
+        return room.getSeatLayout().stream()
+            .map(Seat::getSeatColumn)
+            .filter(col -> col != null && col > 0)
+            .mapToInt(Integer::intValue)
+            .max()
+            .orElse(0);
     }
     
     public List<CinemaRoomResponseDTO> getRoomsByComplexId(Long complexId) {
@@ -240,72 +261,73 @@ public class CinemaRoomService {
         return mapToDTO(room);
     }
     
+    private void replaceSeatLayoutWithNormalGrid(CinemaRoom room, int rows, int cols) {
+        List<Seat> existing = seatRepository.findByCinemaRoom_RoomId(room.getRoomId());
+        if (!existing.isEmpty()) {
+            seatRepository.deleteAll(existing);
+        }
+        if (room.getSeatLayout() == null) {
+            room.setSeatLayout(new ArrayList<>());
+        } else {
+            room.getSeatLayout().clear();
+        }
+        List<Seat> newSeats = generateSeats(
+            rows,
+            cols,
+            room,
+            Collections.emptyList(),
+            false,
+            false
+        );
+        if (newSeats.isEmpty()) {
+            throw new RuntimeException("Phòng phải có ít nhất một ghế. Tăng số hàng/cột.");
+        }
+        room.getSeatLayout().addAll(newSeats);
+    }
+
     @Transactional
     public CinemaRoomResponseDTO updateCinemaRoom(Long roomId, CreateCinemaRoomDTO updateDTO, String username) {
-        CinemaRoom room = cinemaRoomRepository.findById(roomId)
+        CinemaRoom room = cinemaRoomRepository.findByIdWithSeats(roomId)
             .orElseThrow(() -> new RuntimeException("Không tìm thấy phòng chiếu với ID: " + roomId));
 
-        Set<String> desiredSeatKeys = computeSeatPositionKeys(
-            updateDTO.getRows(),
-            updateDTO.getCols(),
-            updateDTO.getEmptyCells(),
-            room
-        );
+        Set<String> fullGridKeys = computeFullGridSeatKeys(updateDTO.getRows(), updateDTO.getCols());
         Set<String> currentSeatKeys = (room.getSeatLayout() == null || room.getSeatLayout().isEmpty())
             ? Collections.emptySet()
             : room.getSeatLayout().stream()
                 .map(s -> s.getSeatRow() + String.valueOf(s.getSeatColumn()))
                 .collect(Collectors.toSet());
 
-        boolean layoutChanged = !desiredSeatKeys.equals(currentSeatKeys);
+        boolean resetLayout = Boolean.TRUE.equals(updateDTO.getResetLayout());
+        boolean dimensionsChanged = resetLayout
+            || !updateDTO.getRows().equals(currentGridRows(room))
+            || !updateDTO.getCols().equals(currentGridCols(room));
+        boolean layoutChanged = dimensionsChanged || !currentSeatKeys.equals(fullGridKeys);
         boolean roomTypeChanged = !room.getRoomType().equals(updateDTO.getRoomType());
         boolean hasPaidTickets = ticketRepository.existsPaidTicketsByRoomId(roomId);
 
-        if (hasPaidTickets && layoutChanged) {
-            throw new RuntimeException("Không thể thay đổi layout ghế (số hàng/cột hoặc vị trí khoảng trống) vì đã có vé được đặt và thanh toán. Vui lòng liên hệ quản trị viên để xử lý.");
+        if (hasPaidTickets && dimensionsChanged) {
+            throw new RuntimeException("Không thể thay đổi số hàng/cột vì đã có vé được đặt và thanh toán. Vui lòng liên hệ quản trị viên để xử lý.");
         }
 
-        if (hasPaidTickets && roomTypeChanged) {
-            throw new RuntimeException("Không thể thay đổi loại phòng chiếu vì đã có vé được đặt và thanh toán. Vui lòng liên hệ quản trị viên để xử lý.");
+        boolean roomNameChanged = !room.getRoomName().equals(updateDTO.getRoomName());
+
+        if (hasPaidTickets && (roomTypeChanged || roomNameChanged)) {
+            String errorMsg = roomTypeChanged ? 
+                "Không thể thay đổi loại phòng chiếu vì đã có vé được đặt." : 
+                "Không thể thay đổi tên phòng chiếu vì đã có vé được đặt.";
+            throw new RuntimeException(errorMsg);
         }
 
         room.setRoomName(updateDTO.getRoomName());
+        room.setHasPanorama(updateDTO.getPanorama() != null && updateDTO.getPanorama());
 
         if (!hasPaidTickets) {
             room.setRoomType(updateDTO.getRoomType());
 
             if (layoutChanged) {
-                if (room.getSeatLayout() != null && !room.getSeatLayout().isEmpty()) {
-                    seatRepository.deleteAll(room.getSeatLayout());
-                    room.getSeatLayout().clear();
-                }
-                boolean addWalk = applyWalkwayAsEmptySlots(room, updateDTO.getCols());
-                List<Seat> newSeats = generateSeats(
-                    updateDTO.getRows(),
-                    updateDTO.getCols(),
-                    room,
-                    updateDTO.getEmptyCells(),
-                    addWalk,
-                    true
-                );
-                if (newSeats.isEmpty()) {
-                    throw new RuntimeException("Phòng phải có ít nhất một ghế. Giảm số ô trống hoặc tăng kích thước lưới.");
-                }
-                room.setSeatLayout(newSeats);
+                replaceSeatLayoutWithNormalGrid(room, updateDTO.getRows(), updateDTO.getCols());
             } else if (room.getSeatLayout() == null || room.getSeatLayout().isEmpty()) {
-                boolean addWalk = applyWalkwayAsEmptySlots(room, updateDTO.getCols());
-                List<Seat> seats = generateSeats(
-                    updateDTO.getRows(),
-                    updateDTO.getCols(),
-                    room,
-                    updateDTO.getEmptyCells(),
-                    addWalk,
-                    true
-                );
-                if (seats.isEmpty()) {
-                    throw new RuntimeException("Phòng phải có ít nhất một ghế. Giảm số ô trống hoặc tăng kích thước lưới.");
-                }
-                room.setSeatLayout(seats);
+                replaceSeatLayoutWithNormalGrid(room, updateDTO.getRows(), updateDTO.getCols());
             }
         }
 
@@ -514,6 +536,7 @@ public class CinemaRoomService {
             .roomId(room.getRoomId())
             .roomName(room.getRoomName())
             .roomType(room.getRoomType())
+            .panorama(room.getHasPanorama() != null && room.getHasPanorama())
             .cinemaComplexId(room.getCinemaComplex().getComplexId())
             .cinemaComplexName(room.getCinemaComplex().getName())
             .rows(rows)

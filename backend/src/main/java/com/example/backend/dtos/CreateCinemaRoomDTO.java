@@ -26,6 +26,10 @@ public class CreateCinemaRoomDTO {
     @NotNull(message = "Loại phòng không được để trống")
     private RoomType roomType;
     
+    @com.fasterxml.jackson.annotation.JsonProperty("hasPanorama")
+    private Boolean panorama;
+
+    
     @NotNull(message = "Cinema complex ID không được để trống")
     private Long cinemaComplexId;
     
@@ -42,5 +46,10 @@ public class CreateCinemaRoomDTO {
      * Lối đi chuẩn và phân loại VIP/Couple khi tạo ghế do server xử lý như layout cũ.
      */
     private List<String> emptyCells;
+
+    /**
+     * Khi true: xóa toàn bộ ghế cũ và tạo lưới mới toàn ghế Thường (dùng khi đổi số hàng/cột).
+     */
+    private Boolean resetLayout;
 }
 

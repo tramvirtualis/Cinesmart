@@ -6,6 +6,7 @@ import {
   computeUserExtraEmptyFromRoom,
   countSeatsInGrid,
   filterEmptyCellsForDimensions,
+  getSeatsForRow,
 } from '../AdminDashboard/utils';
 import ConfirmDeleteModal from '../Common/ConfirmDeleteModal';
 import movieService from '../../services/movieService';
@@ -24,6 +25,7 @@ function ManagerCinemaManagement({ cinemas: initialCinemasList, onCinemasChange,
   const [roomFormData, setRoomFormData] = useState({
     roomName: '',
     roomType: '2D',
+    hasPanorama: false,
     rows: 10,
     cols: 12,
     emptyCells: [],
@@ -36,6 +38,8 @@ function ManagerCinemaManagement({ cinemas: initialCinemasList, onCinemasChange,
     format: '2D'
   });
   const [savingRoom, setSavingRoom] = useState(false);
+  const [roomHasBookings, setRoomHasBookings] = useState(false);
+  const [checkingBookings, setCheckingBookings] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState(null);
   const [movies, setMovies] = useState([]);
   const [loadingMovies, setLoadingMovies] = useState(false);
@@ -114,19 +118,7 @@ function ManagerCinemaManagement({ cinemas: initialCinemasList, onCinemasChange,
             if (roomsResult.success && roomsResult.data) {
               return {
                 ...cinema,
-                rooms: roomsResult.data.map(room => ({
-                  roomId: room.roomId,
-                  roomName: room.roomName,
-                  roomType: cinemaRoomService.mapRoomTypeFromBackend(room.roomType),
-                  rows: room.rows,
-                  cols: room.cols,
-                  seats: (room.seats || []).map(seat => ({
-                    seatId: seat.seatId,
-                    type: seat.type,
-                    row: seat.seatRow, // Map seatRow -> row
-                    column: seat.seatColumn // Map seatColumn -> column
-                  }))
-                }))
+                rooms: roomsResult.data.map(room => cinemaRoomService.mapRoomFromBackend(room))
               };
             }
             return { ...cinema, rooms: [] };
@@ -157,21 +149,36 @@ function ManagerCinemaManagement({ cinemas: initialCinemasList, onCinemasChange,
 
   const handleAddRoom = (cinema) => {
     setEditingRoom(null);
-    setRoomFormData({ roomName: '', roomType: '2D', rows: 10, cols: 12, emptyCells: [] });
+    setRoomFormData({ roomName: '', roomType: '2D', hasPanorama: false, rows: 10, cols: 12, emptyCells: [] });
     setSelectedCinema(cinema);
+    setRoomHasBookings(false);
     setShowRoomModal(true);
   };
 
-  const handleEditRoom = (cinema, room) => {
+  const handleEditRoom = async (cinema, room) => {
     setEditingRoom(room);
     setSelectedCinema(cinema);
     setRoomFormData({
       roomName: room.roomName,
       roomType: room.roomType,
+      hasPanorama: room.hasPanorama || false,
       rows: room.rows,
       cols: room.cols,
       emptyCells: computeUserExtraEmptyFromRoom(room),
     });
+
+    setCheckingBookings(true);
+    try {
+      const { default: cinemaRoomService } = await import('../../services/cinemaRoomService');
+      const result = await cinemaRoomService.checkRoomHasBookingsManager(room.roomId);
+      setRoomHasBookings(result.success ? result.hasBookings : false);
+    } catch (error) {
+      console.error('Error checking bookings:', error);
+      setRoomHasBookings(false);
+    } finally {
+      setCheckingBookings(false);
+    }
+
     setShowRoomModal(true);
   };
 
@@ -299,7 +306,7 @@ function ManagerCinemaManagement({ cinemas: initialCinemasList, onCinemasChange,
     if (!hasAtLeastOneSeat) {
       showNotification(
         editingRoom
-          ? 'Phòng cần ít nhất một ghế — giảm ô trống hoặc tăng số hàng/cột'
+          ? 'Phòng cần ít nhất một ghế — tăng số hàng/cột'
           : 'Số hàng và số cột phải ≥ 1',
         'error'
       );
@@ -320,13 +327,18 @@ function ManagerCinemaManagement({ cinemas: initialCinemasList, onCinemasChange,
     try {
       const { default: cinemaRoomService } = await import('../../services/cinemaRoomService');
       
+      const dimensionsChanged = editingRoom
+        && (rowsN !== editingRoom.rows || colsN !== editingRoom.cols);
+      const lockedByBookings = Boolean(editingRoom && roomHasBookings);
       const roomData = {
         roomName: roomFormData.roomName.trim(),
-        roomType: roomFormData.roomType,
+        roomType: lockedByBookings ? editingRoom.roomType : roomFormData.roomType,
+        hasPanorama: Boolean(roomFormData.hasPanorama),
         cinemaComplexId: selectedCinema.complexId,
-        rows: rowsN,
-        cols: colsN,
-        emptyCells: editingRoom ? (roomFormData.emptyCells || []) : [],
+        rows: lockedByBookings ? editingRoom.rows : rowsN,
+        cols: lockedByBookings ? editingRoom.cols : colsN,
+        emptyCells: [],
+        resetLayout: Boolean(editingRoom && dimensionsChanged && !lockedByBookings),
       };
 
       if (editingRoom) {
@@ -337,19 +349,7 @@ function ManagerCinemaManagement({ cinemas: initialCinemasList, onCinemasChange,
           // Reload rooms from API
           const roomsResult = await cinemaRoomService.getRoomsByComplexIdManager(selectedCinema.complexId);
           if (roomsResult.success) {
-            const mappedRooms = roomsResult.data.map(room => ({
-              roomId: room.roomId,
-              roomName: room.roomName,
-              roomType: cinemaRoomService.mapRoomTypeFromBackend(room.roomType),
-              rows: room.rows,
-              cols: room.cols,
-              seats: (room.seats || []).map(seat => ({
-                seatId: seat.seatId,
-                type: seat.type,
-                row: seat.seatRow, // Map seatRow -> row
-                column: seat.seatColumn // Map seatColumn -> column
-              }))
-            }));
+            const mappedRooms = roomsResult.data.map(room => cinemaRoomService.mapRoomFromBackend(room));
             
             const cinemaIndex = cinemas.findIndex(c => c.complexId === selectedCinema.complexId);
             if (cinemaIndex !== -1) {
@@ -361,6 +361,12 @@ function ManagerCinemaManagement({ cinemas: initialCinemasList, onCinemasChange,
               setCinemas(updatedCinemas);
               if (onCinemasChange) {
                 onCinemasChange(updatedCinemas);
+              }
+              if (dimensionsChanged) {
+                const refreshedRoom = mappedRooms.find(r => r.roomId === editingRoom.roomId);
+                if (refreshedRoom && selectedRoom?.roomId === editingRoom.roomId) {
+                  setSelectedRoom(refreshedRoom);
+                }
               }
             }
           }
@@ -378,19 +384,7 @@ function ManagerCinemaManagement({ cinemas: initialCinemasList, onCinemasChange,
           // Reload rooms from API
           const roomsResult = await cinemaRoomService.getRoomsByComplexIdManager(selectedCinema.complexId);
           if (roomsResult.success) {
-            const mappedRooms = roomsResult.data.map(room => ({
-              roomId: room.roomId,
-              roomName: room.roomName,
-              roomType: cinemaRoomService.mapRoomTypeFromBackend(room.roomType),
-              rows: room.rows,
-              cols: room.cols,
-              seats: (room.seats || []).map(seat => ({
-                seatId: seat.seatId,
-                type: seat.type,
-                row: seat.seatRow, // Map seatRow -> row
-                column: seat.seatColumn // Map seatColumn -> column
-              }))
-            }));
+            const mappedRooms = roomsResult.data.map(room => cinemaRoomService.mapRoomFromBackend(room));
             
             const cinemaIndex = cinemas.findIndex(c => c.complexId === selectedCinema.complexId);
             if (cinemaIndex !== -1) {
@@ -442,14 +436,7 @@ function ManagerCinemaManagement({ cinemas: initialCinemasList, onCinemasChange,
         // Reload rooms from API
         const roomsResult = await cinemaRoomService.getRoomsByComplexIdManager(cinema.complexId);
         if (roomsResult.success) {
-          const mappedRooms = roomsResult.data.map(room => ({
-            roomId: room.roomId,
-            roomName: room.roomName,
-            roomType: cinemaRoomService.mapRoomTypeFromBackend(room.roomType),
-            rows: room.rows,
-            cols: room.cols,
-            seats: room.seats || []
-          }));
+          const mappedRooms = roomsResult.data.map(room => cinemaRoomService.mapRoomFromBackend(room));
           
           const cinemaIndex = cinemas.findIndex(c => c.complexId === cinema.complexId);
           if (cinemaIndex !== -1) {
@@ -912,55 +899,8 @@ function ManagerCinemaManagement({ cinemas: initialCinemasList, onCinemasChange,
     }
   };
 
-  const handleEmptyCellClick = async (rowChar, col) => {
-    if (!selectedCinema || !selectedRoom) return;
-    const cinemaIndex = cinemas.findIndex(c => c.complexId === selectedCinema.complexId);
-    if (cinemaIndex === -1) return;
-    const roomIndex = cinemas[cinemaIndex].rooms.findIndex(r => r.roomId === selectedRoom.roomId);
-    if (roomIndex === -1) return;
-    const room = cinemas[cinemaIndex].rooms[roomIndex];
-
-    const { default: cinemaRoomService } = await import('../../services/cinemaRoomService');
-    try {
-      const result = await cinemaRoomService.addSeatManager(selectedRoom.roomId, {
-        seatRow: rowChar,
-        seatColumn: col,
-        gridRows: selectedRoom.rows,
-        gridCols: selectedRoom.cols,
-        type: 'NORMAL',
-      });
-      if (!result.success || !result.data) {
-        showNotification(result.error || 'Không thể thêm ghế', 'error');
-        return;
-      }
-      const d = result.data;
-      const newSeat = {
-        seatId: d.seatId,
-        type: d.type,
-        row: d.seatRow,
-        column: d.seatColumn,
-      };
-      const updatedRoom = {
-        ...room,
-        seats: [...room.seats, newSeat],
-      };
-      patchRoomInState(cinemaIndex, roomIndex, updatedRoom);
-    } catch (e) {
-      showNotification('Có lỗi khi thêm ghế', 'error');
-    }
-  };
-
   const renderSeatLayout = (room) => {
     if (!room || !room.rows || !room.cols) return null;
-
-    // Create a map of seats by row and column for quick lookup
-    const seatMap = new Map();
-    if (room.seats && room.seats.length > 0) {
-      room.seats.forEach(seat => {
-        const key = `${seat.row}-${seat.column}`;
-        seatMap.set(key, seat);
-      });
-    }
 
     const rows = [];
     for (let i = 0; i < room.rows; i++) {
@@ -989,63 +929,34 @@ function ManagerCinemaManagement({ cinemas: initialCinemasList, onCinemasChange,
                 {rowChar}
               </div>
               <div className="seat-layout__seats">
-                {Array.from({ length: room.cols }, (_, ci) => {
-                  const col = ci + 1;
-                  const key = `${rowChar}-${col}`;
-                  const seat = seatMap.get(key);
-                  if (seat && seat.seatId) {
-                    const nextHint =
-                      seat.type === 'COUPLE'
-                        ? ' — Click: thành Thường'
-                        : seat.type === 'VIP'
-                          ? ' — Click: thành Đôi'
-                          : ' — Click: thành VIP';
-                    return (
-                      <button
-                        key={seat.seatId}
-                        type="button"
-                        className="seat-button"
-                        style={{
-                          backgroundColor: getSeatColor(seat.type),
-                          borderColor: getSeatColor(seat.type),
-                          width: '44px',
-                          minWidth: '44px',
-                          height: '44px',
-                        }}
-                        onClick={() => handleSeatClick(seat.seatId)}
-                        title={`${seat.row}${seat.column} — ${seat.type === 'NORMAL' ? 'Thường' : seat.type === 'VIP' ? 'VIP' : 'Đôi'}${nextHint}`}
-                      >
-                        <span className="seat-button__number">{seat.column}</span>
-                        {seat.type !== 'NORMAL' && (
-                          <span className="seat-button__type">
-                            {seat.type === 'COUPLE' ? '💑' : seat.type === 'VIP' ? '⭐' : ''}
-                          </span>
-                        )}
-                      </button>
-                    );
-                  }
+                {getSeatsForRow(room, rowChar).map((seat) => {
+                  const nextHint =
+                    seat.type === 'COUPLE'
+                      ? ' — Click: thành Thường'
+                      : seat.type === 'VIP'
+                        ? ' — Click: thành Đôi'
+                        : ' — Click: thành VIP';
                   return (
                     <button
-                      key={`empty-${rowChar}-${col}`}
+                      key={seat.seatId}
                       type="button"
-                      className="seat-button seat-button--empty-slot"
+                      className="seat-button"
                       style={{
+                        backgroundColor: getSeatColor(seat.type),
+                        borderColor: getSeatColor(seat.type),
                         width: '44px',
                         minWidth: '44px',
                         height: '44px',
-                        padding: 0,
-                        borderRadius: '8px',
-                        border: '2px dashed rgba(255,255,255,0.35)',
-                        background: 'repeating-linear-gradient(135deg, rgba(40,40,45,0.9) 0, rgba(40,40,45,0.9) 4px, rgba(25,25,30,0.95) 4px, rgba(25,25,30,0.95) 8px)',
-                        color: 'rgba(255,255,255,0.55)',
-                        cursor: 'pointer',
-                        fontSize: '12px',
-                        fontWeight: 600,
                       }}
-                      onClick={() => handleEmptyCellClick(rowChar, col)}
-                      title={`${rowChar}${col} — Trống (click để thêm ghế Thường)`}
+                      onClick={() => handleSeatClick(seat.seatId)}
+                      title={`${seat.row}${seat.column} — ${seat.type === 'NORMAL' ? 'Thường' : seat.type === 'VIP' ? 'VIP' : 'Đôi'}${nextHint}`}
                     >
-                      {col}
+                      <span className="seat-button__number">{seat.column}</span>
+                      {seat.type !== 'NORMAL' && (
+                        <span className="seat-button__type">
+                          {seat.type === 'COUPLE' ? '💑' : seat.type === 'VIP' ? '⭐' : ''}
+                        </span>
+                      )}
                     </button>
                   );
                 })}
@@ -1341,7 +1252,7 @@ function ManagerCinemaManagement({ cinemas: initialCinemasList, onCinemasChange,
                   <circle cx="12" cy="12" r="10"/>
                   <path d="M12 16v-4M12 8h.01"/>
                 </svg>
-                Click ghế: Thường → VIP → Đôi → Thường. Click ô trống để thêm ghế Thường.
+                Click ghế: Thường → VIP → Đôi → Thường.
               </p>
               {renderSeatLayout(selectedRoom)}
             </div>
@@ -1670,18 +1581,59 @@ function ManagerCinemaManagement({ cinemas: initialCinemasList, onCinemasChange,
                       value={roomFormData.roomName}
                       onChange={(e) => setRoomFormData({ ...roomFormData, roomName: e.target.value })}
                       placeholder="VD: Phòng 1"
+                      disabled={editingRoom && (roomHasBookings || checkingBookings)}
+                      style={{
+                        opacity: editingRoom && (roomHasBookings || checkingBookings) ? 0.6 : 1,
+                        cursor: editingRoom && (roomHasBookings || checkingBookings) ? 'not-allowed' : 'text'
+                      }}
                     />
                   </div>
                   <div className="movie-form__group">
                     <label>Loại phòng <span className="required">*</span></label>
                     <select
                       value={roomFormData.roomType}
-                      onChange={(e) => setRoomFormData({ ...roomFormData, roomType: e.target.value })}
+                      disabled={editingRoom && (roomHasBookings || checkingBookings)}
+                      style={{
+                        opacity: editingRoom && (roomHasBookings || checkingBookings) ? 0.6 : 1,
+                        cursor: editingRoom && (roomHasBookings || checkingBookings) ? 'not-allowed' : 'pointer'
+                      }}
+                      onChange={(e) => {
+                        const newType = e.target.value;
+                        setRoomFormData(prev => ({
+                          ...prev,
+                          roomType: newType,
+                        }));
+                      }}
                     >
                       {ROOM_TYPES.map(type => (
                         <option key={type} value={type}>{type}</option>
                       ))}
                     </select>
+                  </div>
+                </div>
+                <div className="movie-form__row">
+                  <div className="movie-form__group">
+                    <label>Mô phỏng 360°</label>
+                    <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
+                      <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+                        <input
+                          type="radio"
+                          name="managerRoomPanorama"
+                          checked={!roomFormData.hasPanorama}
+                          onChange={() => setRoomFormData({ ...roomFormData, hasPanorama: false })}
+                        />
+                        Không
+                      </label>
+                      <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+                        <input
+                          type="radio"
+                          name="managerRoomPanorama"
+                          checked={roomFormData.hasPanorama}
+                          onChange={() => setRoomFormData({ ...roomFormData, hasPanorama: true })}
+                        />
+                        Có
+                      </label>
+                    </div>
                   </div>
                 </div>
                 <div className="movie-form__row">
@@ -1700,6 +1652,11 @@ function ManagerCinemaManagement({ cinemas: initialCinemasList, onCinemasChange,
                       }}
                       min="1"
                       max="26"
+                      disabled={editingRoom && (roomHasBookings || checkingBookings)}
+                      style={{
+                        opacity: editingRoom && (roomHasBookings || checkingBookings) ? 0.6 : 1,
+                        cursor: editingRoom && (roomHasBookings || checkingBookings) ? 'not-allowed' : 'text',
+                      }}
                     />
                   </div>
                   <div className="movie-form__group">
@@ -1717,20 +1674,29 @@ function ManagerCinemaManagement({ cinemas: initialCinemasList, onCinemasChange,
                       }}
                       min="1"
                       max="30"
+                      disabled={editingRoom && (roomHasBookings || checkingBookings)}
+                      style={{
+                        opacity: editingRoom && (roomHasBookings || checkingBookings) ? 0.6 : 1,
+                        cursor: editingRoom && (roomHasBookings || checkingBookings) ? 'not-allowed' : 'text',
+                      }}
                     />
                   </div>
                 </div>
-                {!editingRoom && (
-                  <p style={{ fontSize: '13px', color: '#c9c4c5', marginTop: 10, lineHeight: 1.5 }}>
-                    Phòng mới là lưới đầy ghế Thường (hình chữ nhật). Sau khi tạo, mở <strong>sơ đồ ghế</strong> để thêm lối đi, VIP, ghế đôi hoặc xóa vị trí như trước.
-                  </p>
-                )}
                 {editingRoom && (
                   <div className="movie-form__group">
-                    <p className="movie-modal__warning" style={{ marginTop: '12px' }}>
-                      ⚠️ Thay đổi số hàng/cột sẽ tạo lại toàn bộ layout ghế (nếu phòng chưa có vé đã thanh toán).
-                      Chỉnh loại ghế tại màn <strong>sơ đồ ghế</strong>.
-                    </p>
+                    {checkingBookings ? (
+                      <p className="movie-modal__warning" style={{ color: '#ffd159' }}>
+                        🔄 Đang kiểm tra đặt chỗ...
+                      </p>
+                    ) : roomHasBookings ? (
+                      <p className="movie-modal__warning" style={{ color: '#e83b41' }}>
+                        ⚠️ Phòng chiếu này đã có đặt chỗ. Không thể chỉnh sửa số hàng/cột. Vẫn có thể đổi Panorama 360°.
+                      </p>
+                    ) : (
+                      <p className="movie-modal__warning">
+                        ⚠️ Thay đổi số hàng/cột sẽ xóa toàn bộ ghế hiện tại và tạo lại layout mới.
+                      </p>
+                    )}
                   </div>
                 )}
               </div>

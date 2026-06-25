@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { CENTER_PANORAMA_KEY } from '../constants/panoramaConstants';
 import { panoramaLoader } from '../services/panoramaLoader';
 
-export function usePanorama({ previewSeatId, enabled }) {
+export function usePanorama({ previewSeatId, enabled, roomType }) {
   const containerRef = useRef(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isReady, setIsReady] = useState(false);
@@ -30,7 +30,7 @@ export function usePanorama({ previewSeatId, enabled }) {
     setIsLoading(true);
     setError(null);
     try {
-      await panoramaLoader.init(containerRef.current);
+      await panoramaLoader.init(containerRef.current, roomType);
       initializedRef.current = true;
       setIsReady(true);
       const initialKey = previewSeatId || CENTER_PANORAMA_KEY;
@@ -42,7 +42,7 @@ export function usePanorama({ previewSeatId, enabled }) {
     } finally {
       setIsLoading(false);
     }
-  }, [loadScene, previewSeatId]);
+  }, [loadScene, previewSeatId, roomType]);
 
   const goToCenter = useCallback(async () => {
     await loadScene(CENTER_PANORAMA_KEY, true);

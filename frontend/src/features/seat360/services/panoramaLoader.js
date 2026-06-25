@@ -1,30 +1,50 @@
 import * as Marzipano from 'marzipano';
 import {
   CENTER_PANORAMA_KEY,
-  MANIFEST_URL,
+  PANORAMA_BASE_URL_DEFAULT,
+  PANORAMA_BASE_URL_DELUXE,
   SCENE_TRANSITION_MS,
-  TILES_BASE_URL,
 } from '../constants/panoramaConstants';
 import { panoramaCache } from './panoramaCache';
 
-let manifestPromise = null;
 let sceneIndex = null;
+let cachedManifest = { roomType: null, data: null, baseUrl: null };
 
-export async function loadPanoramaManifest() {
-  if (!manifestPromise) {
-    manifestPromise = fetch(MANIFEST_URL)
-      .then((res) => {
-        if (!res.ok) {
-          throw new Error(`Không thể tải dữ liệu panorama (${res.status})`);
-        }
-        return res.json();
-      })
-      .then((data) => {
-        sceneIndex = new Map(data.scenes.map((s) => [s.name, s]));
-        return data;
-      });
+export function getPanoramaBaseUrl(roomType = '2D') {
+  const type = String(roomType || '2D').toUpperCase();
+  if (type === 'DELUXE') {
+    return PANORAMA_BASE_URL_DELUXE;
   }
-  return manifestPromise;
+  return PANORAMA_BASE_URL_DEFAULT;
+}
+
+async function fetchPanoramaData(baseUrl) {
+  const response = await fetch(`${baseUrl}/data.js`);
+  if (!response.ok) {
+    throw new Error(`Không thể tải dữ liệu panorama (${response.status})`);
+  }
+
+  const text = await response.text();
+  const jsonText = text
+    .replace(/^\s*var\s+APP_DATA\s*=\s*/, '')
+    .replace(/;\s*$/, '');
+
+  return JSON.parse(jsonText);
+}
+
+export async function loadPanoramaManifest(roomType = '2D') {
+  const normalizedType = String(roomType || '2D').toUpperCase();
+  const baseUrl = getPanoramaBaseUrl(normalizedType);
+
+  if (cachedManifest.roomType === normalizedType && cachedManifest.data) {
+    sceneIndex = new Map(cachedManifest.data.scenes.map((s) => [s.name, s]));
+    return { data: cachedManifest.data, baseUrl: cachedManifest.baseUrl };
+  }
+
+  const data = await fetchPanoramaData(baseUrl);
+  cachedManifest = { roomType: normalizedType, data, baseUrl };
+  sceneIndex = new Map(data.scenes.map((s) => [s.name, s]));
+  return { data, baseUrl };
 }
 
 export function getSceneDataByKey(key) {
@@ -42,10 +62,16 @@ export class PanoramaLoader {
     this.viewer = null;
     this.currentKey = null;
     this.manifest = null;
+    this.baseUrl = null;
+    this.roomType = null;
   }
 
-  async init(container) {
-    this.manifest = await loadPanoramaManifest();
+  async init(container, roomType) {
+    const normalizedType = String(roomType || '2D').toUpperCase();
+    const { data, baseUrl } = await loadPanoramaManifest(normalizedType);
+    this.manifest = data;
+    this.baseUrl = baseUrl;
+    this.roomType = normalizedType;
 
     if (this.viewer) {
       this.viewer.destroy();
@@ -68,10 +94,6 @@ export class PanoramaLoader {
       throw new Error('Panorama viewer chưa được khởi tạo');
     }
 
-    if (!this.manifest) {
-      this.manifest = await loadPanoramaManifest();
-    }
-
     const sceneData = getSceneDataByKey(key);
     if (!sceneData) {
       throw new Error(`Không tìm thấy panorama cho ghế "${key}"`);
@@ -80,7 +102,7 @@ export class PanoramaLoader {
     let cached = panoramaCache.get(key);
 
     if (!cached) {
-      const urlPrefix = `${TILES_BASE_URL}/${sceneData.id}`;
+      const urlPrefix = `${this.baseUrl}/tiles/${sceneData.id}`;
       const source = Marzipano.ImageUrlSource.fromString(
         `${urlPrefix}/{z}/{f}/{y}/{x}.jpg`,
         { cubeMapPreviewUrl: `${urlPrefix}/preview.jpg` }
@@ -137,7 +159,6 @@ export class PanoramaLoader {
       this.viewer.destroy();
       this.viewer = null;
     }
-    // Scene cache is tied to a specific viewer instance — must reset on close
     panoramaCache.clear();
     this.currentKey = null;
   }

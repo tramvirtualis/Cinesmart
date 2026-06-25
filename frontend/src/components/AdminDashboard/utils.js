@@ -198,14 +198,17 @@ export function getWalkwayColumns(cols) {
   return s;
 }
 
-/** Chỉ ô trống do người dùng thêm (không tính lối đi mặc định) — dùng khi mở sửa phòng */
-export function computeUserExtraEmptyFromRoom(room) {
-  if (!room || !room.rows || !room.cols) return [];
-  const wc = getWalkwayColumns(room.cols);
-  return computeEmptyCellsFromGrid(room).filter(k => {
-    const p = parseSeatCellKey(k);
-    return p && !wc.has(p.col);
-  });
+/** Luôn trả về [] — không còn ô trống / lối đi khi chỉnh phòng. */
+export function computeUserExtraEmptyFromRoom() {
+  return [];
+}
+
+/** Ghế trong một hàng, sắp xếp theo cột — render liền mạch không khoảng trống. */
+export function getSeatsForRow(room, rowChar) {
+  const target = String(rowChar).toUpperCase();
+  return (room?.seats || [])
+    .filter(s => String(s.row).toUpperCase() === target)
+    .sort((a, b) => Number(a.column) - Number(b.column));
 }
 
 export function filterEmptyCellsForDimensions(emptyCells, rows, cols) {
@@ -218,19 +221,9 @@ export function filterEmptyCellsForDimensions(emptyCells, rows, cols) {
   });
 }
 
-/** Số ghế sau layout: trừ lối đi mặc định và ô trống thêm (emptyCells) */
-export function countSeatsAfterLayout(rows, cols, userExtraEmptyCells) {
-  const wc = getWalkwayColumns(cols);
-  const perRow = cols - wc.size;
-  const userExtras = filterEmptyCellsForDimensions(userExtraEmptyCells || [], rows, cols).filter(k => {
-    const p = parseSeatCellKey(k);
-    return p && !wc.has(p.col);
-  });
-  return rows * perRow - userExtras.length;
-}
-
 export function countSeatsInGrid(rows, cols, emptyCells) {
-  return countSeatsAfterLayout(rows, cols, emptyCells);
+  const extras = filterEmptyCellsForDimensions(emptyCells || [], rows, cols).length;
+  return Math.max(0, rows * cols - extras);
 }
 
 /**

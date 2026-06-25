@@ -23,6 +23,18 @@ public class CinemaRoom {
     @Enumerated(EnumType.STRING)
     private RoomType roomType;
 
+
+    @Column(name = "has_panorama")
+    private Boolean hasPanorama = false;
+
+    public Boolean getHasPanorama() {
+        return hasPanorama;
+    }
+
+    public void setHasPanorama(Boolean hasPanorama) {
+        this.hasPanorama = hasPanorama;
+    }
+
     @ManyToOne
     @JoinColumn(name = "cinema_complex_id")
     private CinemaComplex cinemaComplex;

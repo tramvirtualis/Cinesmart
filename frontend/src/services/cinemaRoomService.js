@@ -64,6 +64,26 @@ const mapRoomTypeFromBackend = (roomType) => {
   return mapping[roomType] || roomType;
 };
 
+
+const mapRoomFromBackend = (room) => ({
+  roomId: room.roomId,
+  roomName: room.roomName,
+  roomType: mapRoomTypeFromBackend(room.roomType),
+  hasPanorama: room.hasPanorama,
+  rows: room.rows,
+  cols: room.cols,
+  seats: (room.seats || []).map((seat) => ({
+    seatId: seat.seatId,
+    type: seat.type,
+    row: seat.seatRow,
+    column: seat.seatColumn,
+  })),
+});
+
+export const isPanoramaEnabled = (room) => {
+  return room?.hasPanorama === true;
+};
+
 export const cinemaRoomService = {
   /**
    * Tạo phòng chiếu mới (Admin)
@@ -75,6 +95,7 @@ export const cinemaRoomService = {
       const payload = {
         roomName: roomData.roomName,
         roomType: mapRoomTypeToBackend(roomData.roomType),
+        hasPanorama: roomData.hasPanorama,
         cinemaComplexId: roomData.cinemaComplexId,
         rows: roomData.rows,
         cols: roomData.cols,
@@ -148,10 +169,12 @@ export const cinemaRoomService = {
       const payload = {
         roomName: roomData.roomName,
         roomType: mapRoomTypeToBackend(roomData.roomType),
+        hasPanorama: roomData.hasPanorama,
         cinemaComplexId: roomData.cinemaComplexId,
         rows: roomData.rows,
         cols: roomData.cols,
         emptyCells: roomData.emptyCells || [],
+        resetLayout: roomData.resetLayout === true,
       };
       
       const response = await axiosInstance.put(`/admin/cinema-rooms/${roomId}`, payload);
@@ -200,6 +223,7 @@ export const cinemaRoomService = {
       const payload = {
         roomName: roomData.roomName,
         roomType: mapRoomTypeToBackend(roomData.roomType),
+        hasPanorama: roomData.hasPanorama,
         cinemaComplexId: roomData.cinemaComplexId,
         rows: roomData.rows,
         cols: roomData.cols,
@@ -252,10 +276,12 @@ export const cinemaRoomService = {
       const payload = {
         roomName: roomData.roomName,
         roomType: mapRoomTypeToBackend(roomData.roomType),
+        hasPanorama: roomData.hasPanorama,
         cinemaComplexId: roomData.cinemaComplexId,
         rows: roomData.rows,
         cols: roomData.cols,
         emptyCells: roomData.emptyCells || [],
+        resetLayout: roomData.resetLayout === true,
       };
       
       const response = await axiosInstance.put(`/manager/cinema-rooms/${roomId}`, payload);
@@ -477,9 +503,10 @@ export const cinemaRoomService = {
     }
   },
 
-  // Helper để map RoomType
+  // Helper để map RoomType / PanoramaType
   mapRoomTypeToBackend,
   mapRoomTypeFromBackend,
+  mapRoomFromBackend,
 };
 
 export default cinemaRoomService;
