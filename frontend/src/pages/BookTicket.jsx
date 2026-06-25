@@ -1140,26 +1140,6 @@ export default function BookTicket() {
                             }) : (dateFromUrl && showtimeFromUrl ? `${showtimeFromUrl} ${dateFromUrl}` : '')}
                           </div>
                         </div>
-                        {!movieIdFromUrl && (
-                          <button
-                            className="btn btn--ghost"
-                            onClick={() => {
-                              // Gửi DESELECT cho tất cả ghế đã chọn khi quay lại
-                              const currentSeats = [...selectedSeats];
-                              if (currentSeats.length > 0 && selectedShowtime?.showtimeId) {
-                                currentSeats.forEach(seatId => {
-                                  if (websocketService.getConnectionStatus()) {
-                                    websocketService.sendSeatSelection(selectedShowtime.showtimeId, seatId, 'DESELECT');
-                                  }
-                                });
-                              }
-                              setStep(1);
-                              setSelectedSeats([]);
-                            }}
-                          >
-                            Quay lại
-                          </button>
-                        )}
                       </div>
 
                       <div className="book-ticket-seat-selection__layout">
