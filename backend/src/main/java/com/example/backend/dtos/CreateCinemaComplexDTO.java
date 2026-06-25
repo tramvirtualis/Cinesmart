@@ -19,5 +19,8 @@ public class CreateCinemaComplexDTO {
     
     @NotBlank(message = "Tỉnh/Thành phố không được để trống")
     private String addressProvince;
+
+    private Double latitude;
+    private Double longitude;
 }
 

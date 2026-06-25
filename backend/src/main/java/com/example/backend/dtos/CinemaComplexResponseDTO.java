@@ -15,5 +15,7 @@ public class CinemaComplexResponseDTO {
     private String addressDescription;
     private String addressProvince;
     private String fullAddress; // Combined address for display
+    private Double latitude;
+    private Double longitude;
 }
 

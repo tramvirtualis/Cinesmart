@@ -198,6 +198,31 @@ public class VoucherService {
                 .map(this::convertToDTO)
                 .collect(Collectors.toList());
     }
+
+    /** Voucher công khai còn hiển thị cho khách (chưa hết hạn) — khớp trang /events. */
+    public List<VoucherResponseDTO> getCustomerVisiblePublicVouchers() {
+        return getVouchersByScope(VoucherScope.PUBLIC).stream()
+                .filter(this::isCustomerVisibleVoucher)
+                .collect(Collectors.toList());
+    }
+
+    public boolean isCustomerVisibleVoucher(VoucherResponseDTO voucher) {
+        if (voucher == null || voucher.getEndDate() == null) {
+            return false;
+        }
+        LocalDateTime endOfDay = voucher.getEndDate().toLocalDate().atTime(23, 59, 59);
+        return !LocalDateTime.now().isAfter(endOfDay);
+    }
+
+    public String resolveVoucherDisplayStatus(VoucherResponseDTO voucher) {
+        if (voucher == null || !isCustomerVisibleVoucher(voucher)) {
+            return "EXPIRED";
+        }
+        if (voucher.getStartDate() != null && LocalDateTime.now().isBefore(voucher.getStartDate())) {
+            return "UPCOMING";
+        }
+        return "ACTIVE";
+    }
     
     @Transactional
     public VoucherResponseDTO assignVoucherToCustomer(Long voucherId, Long customerId) throws Exception {

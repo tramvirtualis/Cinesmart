@@ -92,6 +92,7 @@ export const authService = {
         localStorage.setItem('jwt', token);
       }
       localStorage.setItem('user', JSON.stringify(userData));
+      window.dispatchEvent(new Event('popcorn-bot-session-change'));
   
       // Không redirect ở đây, để component xử lý redirect
       // Service chỉ nên trả về data, không nên xử lý navigation
@@ -141,6 +142,7 @@ export const authService = {
         localStorage.setItem('jwt', userData.token);
       }
       localStorage.setItem('user', JSON.stringify(userData));
+      window.dispatchEvent(new Event('popcorn-bot-session-change'));
 
       return {
         success: true,

@@ -2,21 +2,23 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import Header from '../components/Header.jsx';
 import Footer from '../components/Footer.jsx';
-import { cinemaComplexService } from '../services/cinemaComplexService';
+import { recommendationService } from '../services/recommendationService';
 
 export default function Cinemas() {
   const [cinemas, setCinemas] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [useLocation, setUseLocation] = useState(false);
 
   useEffect(() => {
-    const loadCinemas = async () => {
+    const loadCinemas = async (latitude = null, longitude = null) => {
       setLoading(true);
       setError(null);
       try {
-        const result = await cinemaComplexService.getAllCinemaComplexes();
+        const result = await recommendationService.getRecommendedCinemas(latitude, longitude);
         if (result.success && result.data) {
           setCinemas(result.data);
+          if (latitude !== null) setUseLocation(true);
         } else {
           setError(result.error || 'Không thể tải danh sách rạp');
         }
@@ -28,7 +30,19 @@ export default function Cinemas() {
       }
     };
 
-    loadCinemas();
+    if ("geolocation" in navigator) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          loadCinemas(position.coords.latitude, position.coords.longitude);
+        },
+        (error) => {
+          console.warn("Geolocation denied or error, loading default cinemas:", error.message);
+          loadCinemas();
+        }
+      );
+    } else {
+      loadCinemas();
+    }
   }, []);
 
   return (
@@ -38,7 +52,9 @@ export default function Cinemas() {
       <main className="main">
         <section className="section section--compact">
           <div className="container">
-            <h1 className="section__title" style={{ fontSize: '24px', marginBottom: '16px' }}>Danh sách rạp</h1>
+            <h1 className="section__title" style={{ fontSize: '24px', marginBottom: '16px' }}>
+              {useLocation ? 'Rạp Gần Bạn Đề Xuất' : 'Danh sách rạp'}
+            </h1>
             {loading ? (
               <div style={{ textAlign: 'center', padding: '40px', color: '#c9c4c5' }}>
                 Đang tải danh sách rạp...

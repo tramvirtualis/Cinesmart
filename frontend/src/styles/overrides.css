@@ -46,6 +46,7 @@
 @import './components/cards.css';
 @import './components/checkout-payment.css';
 @import './components/checkout-voucher.css';
+@import './components/cinema-chatbot.css';
 
 /* Import Pages */
 @import './pages/auth.css';

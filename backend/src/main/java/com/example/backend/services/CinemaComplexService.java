@@ -58,6 +58,8 @@ public class CinemaComplexService {
         Address address = Address.builder()
             .description(createDTO.getAddressDescription())
             .province(createDTO.getAddressProvince())
+            .latitude(createDTO.getLatitude())
+            .longitude(createDTO.getLongitude())
             .build();
         Address savedAddress = addressRepository.save(address);
         
@@ -104,6 +106,8 @@ public class CinemaComplexService {
             address = Address.builder()
                 .description(updateDTO.getAddressDescription())
                 .province(updateDTO.getAddressProvince())
+                .latitude(updateDTO.getLatitude())
+                .longitude(updateDTO.getLongitude())
                 .build();
             address = addressRepository.save(address);
             complex.setAddress(address);
@@ -111,6 +115,8 @@ public class CinemaComplexService {
             // Cập nhật Address hiện có
             address.setDescription(updateDTO.getAddressDescription());
             address.setProvince(updateDTO.getAddressProvince());
+            address.setLatitude(updateDTO.getLatitude());
+            address.setLongitude(updateDTO.getLongitude());
             addressRepository.save(address);
         }
         
@@ -309,6 +315,8 @@ public class CinemaComplexService {
             .addressDescription(addressDescription)
             .addressProvince(addressProvince)
             .fullAddress(fullAddress)
+            .latitude(complex.getAddress() != null ? complex.getAddress().getLatitude() : null)
+            .longitude(complex.getAddress() != null ? complex.getAddress().getLongitude() : null)
             .build();
     }
 }

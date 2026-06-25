@@ -1,6 +1,7 @@
 import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import ScrollToTop from './components/ScrollToTop.jsx';
+import CinemaChatbot from './components/CinemaChatbot.jsx';
 import NotificationProvider from './components/NotificationProvider.jsx';
 import ProtectedRoute from './components/ProtectedRoute.jsx';
 import Home from './pages/Home.jsx';
@@ -32,6 +33,7 @@ export default function App() {
   return (
     <NotificationProvider>
       <ScrollToTop />
+      <CinemaChatbot />
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/home" element={<Home />} />

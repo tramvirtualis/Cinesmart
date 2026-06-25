@@ -147,6 +147,15 @@ public class OrderService {
     }
 
     @Transactional(readOnly = true)
+    public Optional<OrderResponseDTO> getOrderById(Long orderId) {
+        return orderRepository.findByIdWithDetails(orderId)
+                .map(order -> {
+                    normalizeOrderStatus(order);
+                    return mapToDTO(order);
+                });
+    }
+
+    @Transactional(readOnly = true)
     public List<OrderResponseDTO> getOrdersByComplexId(Long complexId) {
         List<Order> orders = orderRepository.findByCinemaComplexIdWithDetails(complexId);
         orders.forEach(this::normalizeOrderStatus);

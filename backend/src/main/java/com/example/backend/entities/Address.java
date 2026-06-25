@@ -15,4 +15,6 @@ public class Address {
 
     private String description;
     private String province;
+    private Double latitude;
+    private Double longitude;
 }

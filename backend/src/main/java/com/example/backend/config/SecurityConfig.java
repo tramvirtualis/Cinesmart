@@ -49,7 +49,8 @@ public class SecurityConfig {
     }
 
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http, JwtUtils jwtUtils) throws Exception {
+    public SecurityFilterChain securityFilterChain(HttpSecurity http, JwtUtils jwtUtils,
+            N8nApiKeyFilter n8nApiKeyFilter) throws Exception {
         // Instantiate filter manually to avoid double registration by Spring Boot
         JwtAuthenticationFilter jwtAuthenticationFilter = new JwtAuthenticationFilter(jwtUtils);
 
@@ -70,6 +71,9 @@ public class SecurityConfig {
                         .requestMatchers("/api/payment/momo/ipn").permitAll() // MoMo IPN không cần auth
                         // Forgot PIN endpoints - không cần authentication
                         .requestMatchers("/api/wallet/pin/forgot/**").permitAll() // Forgot PIN endpoints
+
+                        // n8n integration - xác thực bằng X-API-Key trong N8nApiKeyFilter
+                        .requestMatchers("/api/n8n/**").permitAll()
 
                         // WebSocket endpoints - không cần authentication
                         .requestMatchers("/ws/**").permitAll()
@@ -92,6 +96,7 @@ public class SecurityConfig {
 
                         // Tất cả request khác cần authentication
                         .anyRequest().authenticated())
+                .addFilterBefore(n8nApiKeyFilter, UsernamePasswordAuthenticationFilter.class)
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
                 // Đảm bảo JWT filter luôn chạy trước tất cả các filter khác
                 .exceptionHandling(exceptions -> exceptions

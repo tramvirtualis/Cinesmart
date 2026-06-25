@@ -34,6 +34,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         // Skip JWT processing for public endpoints (but not wallet/create - we still need to set auth)
         if (requestPath.startsWith("/api/public/") || 
             requestPath.startsWith("/api/auth/") ||
+            requestPath.startsWith("/api/n8n/") ||
             requestPath.startsWith("/api/enums/") ||
             requestPath.startsWith("/api/reviews/movie/") ||
             requestPath.startsWith("/ws/")) {

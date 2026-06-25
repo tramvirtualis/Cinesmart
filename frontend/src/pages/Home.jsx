@@ -9,6 +9,7 @@ import { Section, CardsGrid, PromosGrid } from '../components/SectionGrid.jsx';
 import { enumService } from '../services/enumService';
 import { bannerService } from '../services/bannerService';
 import { voucherService } from '../services/voucherService';
+import { recommendationService } from '../services/recommendationService';
 import interstellar from '../assets/images/interstellar.jpg';
 import inception from '../assets/images/inception.jpg';
 import darkKnightRises from '../assets/images/the-dark-knight-rises.jpg';
@@ -70,9 +71,11 @@ export default function Home() {
   const [comingSoon, setComingSoon] = useState([]);
   const [banners, setBanners] = useState([]);
   const [promos, setPromos] = useState([]);
+  const [recommended, setRecommended] = useState([]);
   const [loading, setLoading] = useState(true);
   const [loadingBanners, setLoadingBanners] = useState(true);
   const [loadingPromos, setLoadingPromos] = useState(true);
+  const [loadingRecommended, setLoadingRecommended] = useState(true);
 
   // Kiểm tra role - chặn admin và manager vào trang chủ
   useEffect(() => {
@@ -202,6 +205,25 @@ export default function Home() {
     fetchMovies();
   }, []);
 
+  // Fetch recommended movies
+  useEffect(() => {
+    const fetchRecommended = async () => {
+      try {
+        setLoadingRecommended(true);
+        const result = await recommendationService.getRecommendedMovies();
+        if (result.success && result.data) {
+          // Take top 6 for recommendation
+          setRecommended(result.data.slice(0, 6).map(formatMovieData));
+        }
+      } catch (err) {
+        console.error('Error fetching recommended movies:', err);
+      } finally {
+        setLoadingRecommended(false);
+      }
+    };
+    fetchRecommended();
+  }, []);
+
   const handlePlayTrailer = (trailerId) => {
     if (trailerId) {
       setTrailerModal({ isOpen: true, videoId: trailerId });
@@ -219,6 +241,17 @@ export default function Home() {
       <HeroCarousel posters={banners.length > 0 ? banners : [interstellar, inception, darkKnightRises, driveMyCar]} />
       
       <main className="main">
+        {recommended.length > 0 && (
+          <Section id="recommended" title="Gợi Ý Dành Riêng Cho Bạn">
+            {loadingRecommended ? (
+              <div style={{ padding: '40px', textAlign: 'center', color: '#e6e1e2' }}>
+                Đang đề xuất phim...
+              </div>
+            ) : (
+              <CardsGrid items={recommended} isNowShowing={true} onPlayTrailer={handlePlayTrailer} />
+            )}
+          </Section>
+        )}
         <Section id="now-showing" title="Phim Đang Chiếu">
           {loading ? (
             <div style={{ padding: '40px', textAlign: 'center', color: '#e6e1e2' }}>
