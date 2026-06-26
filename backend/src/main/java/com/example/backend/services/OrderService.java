@@ -63,6 +63,7 @@ public class OrderService {
     private final NotificationService notificationService; // Dùng @Lazy để tránh circular dependency
     @Lazy
     private final LoyaltyService loyaltyService;
+    private final CustomerSpendingService customerSpendingService;
 
     // ==================== Methods from HEAD (for getting orders)
     // ====================
@@ -655,103 +656,25 @@ public class OrderService {
     @Transactional(readOnly = true)
     public Map<String, Object> getExpenseStatistics(Long userId) {
         List<Order> orders = orderRepository.findByUserUserIdWithDetails(userId);
+        List<Order> paidOrders = customerSpendingService.filterEligibleSpendingOrders(orders);
 
-        System.out.println("DEBUG: Total orders found for user " + userId + ": " + orders.size());
-
-        // Chỉ tính các orders đã thanh toán thành công (có vnpPayDate)
-        // Và chỉ tính orders thanh toán bằng VNPAY, MOMO, ZALOPAY (không tính WALLET)
-        // KHÔNG tính orders nạp tiền vào ví (isTopUp = true) - sẽ tính riêng
-        List<Order> paidOrders = orders.stream()
-                .filter(order -> {
-                    boolean isPaid = order.getVnpPayDate() != null;
-                    if (!isPaid) {
-                        System.out.println("DEBUG: Order " + order.getOrderId() + " not paid (vnpPayDate is null)");
-                        return false;
-                    }
-                    
-                    // Loại bỏ đơn nạp tiền vào ví
-                    boolean isTopUp = Boolean.TRUE.equals(order.getIsTopUp());
-                    if (isTopUp) {
-                        System.out.println("DEBUG: Order " + order.getOrderId() + " is top-up, excluding from expenses");
-                        return false;
-                    }
-                    
-                    // Chỉ tính orders thanh toán bằng VNPAY, MOMO, ZALOPAY (không tính WALLET)
-                    PaymentMethod paymentMethod = order.getPaymentMethod();
-                    boolean isWalletPayment = paymentMethod == PaymentMethod.WALLET;
-                    
-                    // Nếu là thanh toán bằng ví, không tính
-                    if (isWalletPayment) {
-                        System.out.println("DEBUG: Order " + order.getOrderId() + " paid by WALLET, excluding from expenses");
-                        return false;
-                    }
-                    
-                    // Tính các orders thanh toán bằng VNPAY, MOMO, ZALOPAY
-                    return true;
-                })
-                .collect(Collectors.toList());
-        
         // Tính riêng tổng số tiền nạp vào ví
         List<Order> topUpOrders = orders.stream()
-                .filter(order -> {
-                    boolean isPaid = order.getVnpPayDate() != null;
-                    if (!isPaid) {
-                        return false;
-                    }
-                    boolean isTopUp = Boolean.TRUE.equals(order.getIsTopUp());
-                    return isTopUp;
-                })
+                .filter(order -> order.getVnpPayDate() != null)
+                .filter(order -> Boolean.TRUE.equals(order.getIsTopUp()))
                 .collect(Collectors.toList());
-        
+
         BigDecimal totalTopUp = topUpOrders.stream()
-                .map(order -> {
-                    BigDecimal amount = order.getTotalAmount();
-                    if (amount == null) {
-                        return BigDecimal.ZERO;
-                    }
-                    // Nếu order bị hủy, trừ đi số tiền đã hoàn
-                    if (order.getStatus() == OrderStatus.CANCELLED && order.getRefundAmount() != null) {
-                        return amount.subtract(order.getRefundAmount());
-                    }
-                    return amount;
-                })
+                .map(customerSpendingService::calculateNetSpentAmount)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-        System.out.println("DEBUG: Paid orders count (excluding wallet payments): " + paidOrders.size());
-
-        // Tính tổng chi tiêu
-        // Nếu order bị CANCELLED, trừ đi refundAmount
-        BigDecimal totalSpent = paidOrders.stream()
-                .map(order -> {
-                    BigDecimal amount = order.getTotalAmount();
-                    if (amount == null) {
-                        return BigDecimal.ZERO;
-                    }
-                    
-                    // Nếu order bị hủy, trừ đi số tiền đã hoàn
-                    if (order.getStatus() == OrderStatus.CANCELLED && order.getRefundAmount() != null) {
-                        BigDecimal netAmount = amount.subtract(order.getRefundAmount());
-                        System.out.println("DEBUG: Order " + order.getOrderId() + " was cancelled. Amount: " + amount + ", Refund: " + order.getRefundAmount() + ", Net: " + netAmount);
-                        return netAmount;
-                    }
-                    
-                    System.out.println("DEBUG: Order " + order.getOrderId() + " amount: " + amount);
-                    return amount;
-                })
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
-
-        System.out.println("DEBUG: Total spent: " + totalSpent);
+        BigDecimal totalSpent = customerSpendingService.calculateTotalSpent(orders);
+        BigDecimal last12MonthsSpent = customerSpendingService.calculateLast12MonthsSpent(orders);
 
         // Đếm tổng số vé (tổng số tickets)
         long totalTickets = paidOrders.stream()
-                .mapToLong(order -> {
-                    long ticketCount = order.getTickets() != null ? order.getTickets().size() : 0;
-                    System.out.println("DEBUG: Order " + order.getOrderId() + " ticket count: " + ticketCount);
-                    return ticketCount;
-                })
+                .mapToLong(order -> order.getTickets() != null ? order.getTickets().size() : 0)
                 .sum();
-
-        System.out.println("DEBUG: Total tickets: " + totalTickets);
 
         // Tính chi tiêu trung bình/vé
         BigDecimal averagePerTicket = totalTickets > 0
@@ -770,89 +693,50 @@ public class OrderService {
         LocalDate lastMonthEnd = lastMonth.atEndOfMonth();
         LocalDate threeMonthsAgoStart = threeMonthsAgo.atDay(1);
 
-        BigDecimal thisMonthSpent = paidOrders.stream()
-                .filter(order -> {
-                    if (order.getOrderDate() == null)
-                        return false;
-                    LocalDate orderDate = order.getOrderDate().toLocalDate();
-                    return !orderDate.isBefore(currentMonthStart) && !orderDate.isAfter(currentMonthEnd);
-                })
-                .map(order -> {
-                    BigDecimal amount = order.getTotalAmount();
-                    if (amount == null) {
-                        return BigDecimal.ZERO;
-                    }
-                    // Nếu order bị hủy, trừ đi số tiền đã hoàn
-                    if (order.getStatus() == OrderStatus.CANCELLED && order.getRefundAmount() != null) {
-                        return amount.subtract(order.getRefundAmount());
-                    }
-                    return amount;
-                })
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal thisMonthSpent = sumSpentInDateRange(paidOrders, currentMonthStart, currentMonthEnd);
+        BigDecimal lastMonthSpent = sumSpentInDateRange(paidOrders, lastMonthStart, lastMonthEnd);
+        BigDecimal lastThreeMonthsSpent = sumSpentFromDate(paidOrders, threeMonthsAgoStart);
 
-        BigDecimal lastMonthSpent = paidOrders.stream()
-                .filter(order -> {
-                    if (order.getOrderDate() == null)
-                        return false;
-                    LocalDate orderDate = order.getOrderDate().toLocalDate();
-                    return !orderDate.isBefore(lastMonthStart) && !orderDate.isAfter(lastMonthEnd);
-                })
-                .map(order -> {
-                    BigDecimal amount = order.getTotalAmount();
-                    if (amount == null) {
-                        return BigDecimal.ZERO;
-                    }
-                    // Nếu order bị hủy, trừ đi số tiền đã hoàn
-                    if (order.getStatus() == OrderStatus.CANCELLED && order.getRefundAmount() != null) {
-                        return amount.subtract(order.getRefundAmount());
-                    }
-                    return amount;
-                })
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
-
-        BigDecimal lastThreeMonthsSpent = paidOrders.stream()
-                .filter(order -> {
-                    if (order.getOrderDate() == null)
-                        return false;
-                    LocalDate orderDate = order.getOrderDate().toLocalDate();
-                    return !orderDate.isBefore(threeMonthsAgoStart);
-                })
-                .map(order -> {
-                    BigDecimal amount = order.getTotalAmount();
-                    if (amount == null) {
-                        return BigDecimal.ZERO;
-                    }
-                    // Nếu order bị hủy, trừ đi số tiền đã hoàn
-                    if (order.getStatus() == OrderStatus.CANCELLED && order.getRefundAmount() != null) {
-                        return amount.subtract(order.getRefundAmount());
-                    }
-                    return amount;
-                })
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
-
-        // Đếm tổng số đơn hàng đã thanh toán (không tính đơn nạp tiền)
         long totalOrders = paidOrders.size();
-
-        System.out.println("DEBUG: Total orders (excluding top-up): " + totalOrders);
-        System.out.println("DEBUG: Total top-up amount: " + totalTopUp);
-        System.out.println("DEBUG: This month spent: " + thisMonthSpent);
-        System.out.println("DEBUG: Last month spent: " + lastMonthSpent);
-        System.out.println("DEBUG: Last 3 months spent: " + lastThreeMonthsSpent);
 
         Map<String, Object> statistics = new HashMap<>();
         statistics.put("totalSpent", totalSpent);
+        statistics.put("last12MonthsSpent", last12MonthsSpent);
         statistics.put("totalTickets", totalTickets);
         statistics.put("totalOrders", totalOrders);
         statistics.put("totalTopUp", totalTopUp);
         statistics.put("thisMonthSpent", thisMonthSpent);
         statistics.put("lastMonthSpent", lastMonthSpent);
         statistics.put("lastThreeMonthsSpent", lastThreeMonthsSpent);
-
-        System.out.println("DEBUG: Returning statistics map: " + statistics);
-        System.out.println("DEBUG: Statistics values - totalSpent: " + totalSpent + " (type: "
-                + totalSpent.getClass().getName() + ")");
+        statistics.put("averagePerTicket", averagePerTicket);
 
         return statistics;
+    }
+
+    private BigDecimal sumSpentInDateRange(List<Order> paidOrders, LocalDate start, LocalDate end) {
+        return paidOrders.stream()
+                .filter(order -> {
+                    if (order.getOrderDate() == null) {
+                        return false;
+                    }
+                    LocalDate orderDate = order.getOrderDate().toLocalDate();
+                    return !orderDate.isBefore(start) && !orderDate.isAfter(end);
+                })
+                .map(customerSpendingService::calculateNetSpentAmount)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
+
+    private BigDecimal sumSpentFromDate(List<Order> paidOrders, LocalDate start) {
+        return paidOrders.stream()
+                .filter(order -> {
+                    if (order.getOrderDate() == null) {
+                        return false;
+                    }
+                    LocalDate orderDate = order.getOrderDate().toLocalDate();
+                    return !orderDate.isBefore(start);
+                })
+                .map(customerSpendingService::calculateNetSpentAmount)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
     }
 
     /**

@@ -1,5 +1,6 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { useSpeechRecognition } from '../hooks/useSpeechRecognition.js';
 import {
   sendChatMessage,
   fetchChatHistory,
@@ -78,6 +79,17 @@ export default function CinemaChatbot() {
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
   const redirectTimeoutRef = useRef(null);
+  const submitMessageRef = useRef(null);
+
+  const {
+    isListening,
+    isSupported: isVoiceSupported,
+    error: voiceError,
+    toggle: toggleVoice,
+    stop: stopVoice,
+    clearError: clearVoiceError,
+    setOnResult: setVoiceOnResult,
+  } = useSpeechRecognition({ lang: 'vi-VN' });
 
   const isHiddenRoute =
     location.pathname.startsWith('/admin') ||
@@ -169,6 +181,13 @@ export default function CinemaChatbot() {
     }, REDIRECT_DELAY_MS);
   };
 
+  useEffect(() => {
+    if (!isOpen) {
+      stopVoice();
+      clearVoiceError();
+    }
+  }, [isOpen, stopVoice, clearVoiceError]);
+
   const requestBotReply = async (userText, options = {}) => {
     setIsTyping(true);
     try {
@@ -183,6 +202,7 @@ export default function CinemaChatbot() {
         action,
         target_url: targetUrl,
         currentPath: `${location.pathname}${location.search}`,
+        fromVoice: options.fromVoice === true,
       });
 
       if (redirectPath) {
@@ -201,6 +221,34 @@ export default function CinemaChatbot() {
     }
   };
 
+  const submitMessage = useCallback((text, options = {}) => {
+    const trimmed = typeof text === 'string' ? text.trim() : '';
+    if (!trimmed || isTyping) {
+      return;
+    }
+
+    setMessages((prev) => [
+      ...prev,
+      { id: `user-${Date.now()}`, role: 'user', text: trimmed },
+    ]);
+    setInput('');
+    requestBotReply(trimmed, options);
+  }, [isTyping, location.pathname, location.search]);
+
+  submitMessageRef.current = submitMessage;
+
+  useEffect(() => {
+    setVoiceOnResult((transcript, isFinal) => {
+      if (!transcript) {
+        return;
+      }
+      setInput(transcript);
+      if (isFinal) {
+        submitMessageRef.current?.(transcript, { fromVoice: true });
+      }
+    });
+  }, [setVoiceOnResult]);
+
   const handleQuickReply = (value) => {
     const label = QUICK_REPLIES.find((item) => item.value === value)?.label ?? value;
     setMessages((prev) => [
@@ -212,15 +260,12 @@ export default function CinemaChatbot() {
 
   const handleSend = (event) => {
     event.preventDefault();
-    const trimmed = input.trim();
-    if (!trimmed) return;
+    submitMessage(input);
+  };
 
-    setMessages((prev) => [
-      ...prev,
-      { id: `user-${Date.now()}`, role: 'user', text: trimmed },
-    ]);
-    setInput('');
-    requestBotReply(trimmed);
+  const handleVoiceToggle = () => {
+    clearVoiceError();
+    toggleVoice();
   };
 
   if (isHiddenRoute) {
@@ -239,8 +284,8 @@ export default function CinemaChatbot() {
               <div>
                 <p className="cinema-chatbot__title">Popcorn Bot</p>
                 <p className="cinema-chatbot__status">
-                  <span className="cinema-chatbot__status-dot" />
-                  Sẵn sàng hỗ trợ
+                  <span className={`cinema-chatbot__status-dot ${isListening ? 'cinema-chatbot__status-dot--listening' : ''}`} />
+                  {isListening ? 'Đang nghe...' : 'Sẵn sàng hỗ trợ'}
                 </p>
               </div>
             </div>
@@ -313,25 +358,51 @@ export default function CinemaChatbot() {
           </div>
 
           <form className="cinema-chatbot__input-row" onSubmit={handleSend}>
-            <input
-              ref={inputRef}
-              type="text"
-              className="cinema-chatbot__input"
-              placeholder="Nhập tin nhắn..."
-              value={input}
-              onChange={(event) => setInput(event.target.value)}
-              maxLength={500}
-            />
-            <button
-              type="submit"
-              className="cinema-chatbot__send"
-              disabled={!input.trim()}
-              aria-label="Gửi tin nhắn"
-            >
-              <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
-                <path d="M3.4 20.4l17.45-7.2c.8-.33.8-1.46 0-1.8L3.4 4.2c-.77-.32-1.58.4-1.4 1.22l1.52 6.1a1 1 0 00.95.76H12v2H4.47a1 1 0 00-.95.76l-1.52 6.1c-.18.82.63 1.54 1.4 1.22z" />
-              </svg>
-            </button>
+            {voiceError && (
+              <p className="cinema-chatbot__voice-error" role="alert">
+                {voiceError}
+              </p>
+            )}
+            <div className="cinema-chatbot__input-controls">
+              <input
+                ref={inputRef}
+                type="text"
+                className="cinema-chatbot__input"
+                placeholder={isListening ? 'Đang nghe giọng nói...' : 'Nhập tin nhắn...'}
+                value={input}
+                onChange={(event) => setInput(event.target.value)}
+                maxLength={500}
+                disabled={isListening}
+              />
+              {isVoiceSupported && (
+                <button
+                  type="button"
+                  className={`cinema-chatbot__mic ${isListening ? 'cinema-chatbot__mic--active' : ''}`}
+                  onClick={handleVoiceToggle}
+                  disabled={isTyping}
+                  aria-label={isListening ? 'Dừng ghi âm' : 'Nhắn bằng giọng nói'}
+                  aria-pressed={isListening}
+                >
+                  <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+                    {isListening ? (
+                      <path d="M6 6h12v12H6z" />
+                    ) : (
+                      <path d="M12 14a3 3 0 003-3V5a3 3 0 10-6 0v6a3 3 0 003 3zm5-3a5 5 0 01-10 0H5a7 7 0 0014 0h-2zm-5 7a7 7 0 01-7-7H3a9 9 0 0018 0h-2a7 7 0 01-7 7z" />
+                    )}
+                  </svg>
+                </button>
+              )}
+              <button
+                type="submit"
+                className="cinema-chatbot__send"
+                disabled={!input.trim() || isTyping || isListening}
+                aria-label="Gửi tin nhắn"
+              >
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+                  <path d="M3.4 20.4l17.45-7.2c.8-.33.8-1.46 0-1.8L3.4 4.2c-.77-.32-1.58.4-1.4 1.22l1.52 6.1a1 1 0 00.95.76H12v2H4.47a1 1 0 00-.95.76l-1.52 6.1c-.18.82.63 1.54 1.4 1.22z" />
+                </svg>
+              </button>
+            </div>
           </form>
         </div>
       )}

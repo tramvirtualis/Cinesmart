@@ -19,5 +19,6 @@ public class UserResponseDTO {
     private String role; // ADMIN, MANAGER, USER
     private Long cinemaComplexId; // Chỉ có khi role là MANAGER
     private String avatar; // URL của avatar từ Cloudinary
+    private String tier; // MEMBER, SILVER, GOLD, PLATINUM — chỉ có với khách hàng (USER)
 }
 

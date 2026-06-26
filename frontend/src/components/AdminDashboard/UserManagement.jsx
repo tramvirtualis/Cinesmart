@@ -187,6 +187,25 @@ function UserManagement({ users: initialUsersList, cinemas: cinemasList, voucher
 
   const formatRole = (r) => r === 'ADMIN' ? 'Admin' : r === 'MANAGER' ? 'Manager' : 'Customer';
 
+  const formatTierLabel = (tier) => {
+    switch (tier) {
+      case 'PLATINUM': return 'Bạch kim';
+      case 'GOLD': return 'Vàng';
+      case 'SILVER': return 'Bạc';
+      case 'MEMBER': return 'Thành viên';
+      default: return 'Thành viên';
+    }
+  };
+
+  const getTierBadgeStyle = (tier) => {
+    switch (tier) {
+      case 'PLATINUM': return { backgroundColor: '#7c4dff', color: '#fff' };
+      case 'GOLD': return { backgroundColor: '#ffd159', color: '#1a1a1a' };
+      case 'SILVER': return { backgroundColor: '#9e9e9e', color: '#fff' };
+      default: return { backgroundColor: '#5c5c5c', color: '#fff' };
+    }
+  };
+
   const handleAddStaff = () => {
     setFormData({
       username: '',
@@ -402,6 +421,7 @@ function UserManagement({ users: initialUsersList, cinemas: cinemasList, voucher
                     <th>Phone</th>
                     <th>Địa chỉ</th>
                     <th>Vai trò</th>
+                    <th>Thứ hạng</th>
                     <th>Trạng thái</th>
                     <th>Thao tác</th>
                   </tr>
@@ -409,7 +429,7 @@ function UserManagement({ users: initialUsersList, cinemas: cinemasList, voucher
                 <tbody>
                   {filteredUsers.length === 0 ? (
                     <tr>
-                      <td colSpan="8" style={{ textAlign: 'center', padding: '20px', color: '#666' }}>
+                      <td colSpan="9" style={{ textAlign: 'center', padding: '20px', color: '#666' }}>
                         {searchTerm || filterRole || filterStatus || filterProvince ? 'Không tìm thấy người dùng nào phù hợp' : 'Không có dữ liệu'}
                       </td>
                     </tr>
@@ -423,6 +443,24 @@ function UserManagement({ users: initialUsersList, cinemas: cinemasList, voucher
                     <td>{u.address}</td>
                     <td>
                       {formatRole(u.role)}
+                    </td>
+                    <td>
+                      {u.role === 'USER' ? (
+                        <span
+                          className="movie-status-badge"
+                          style={{
+                            ...getTierBadgeStyle(u.tier || 'MEMBER'),
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            minWidth: '100px'
+                          }}
+                        >
+                          {formatTierLabel(u.tier || 'MEMBER')}
+                        </span>
+                      ) : (
+                        <span style={{ color: '#888' }}>—</span>
+                      )}
                     </td>
                     <td>
                       <span 

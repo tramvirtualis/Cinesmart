@@ -70,6 +70,7 @@ export default function Profile() {
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [expenseStats, setExpenseStats] = useState({
     totalSpent: 0,
+    last12MonthsSpent: 0,
     totalTickets: 0,
     totalOrders: 0,
     totalTopUp: 0,
@@ -372,6 +373,7 @@ export default function Profile() {
         
         const expenseData = {
           totalSpent: stats.totalSpent ? Number(stats.totalSpent) : 0,
+          last12MonthsSpent: stats.last12MonthsSpent ? Number(stats.last12MonthsSpent) : 0,
           totalTickets: stats.totalTickets ? Number(stats.totalTickets) : 0,
           totalOrders: stats.totalOrders ? Number(stats.totalOrders) : 0,
           totalTopUp: stats.totalTopUp ? Number(stats.totalTopUp) : 0,
@@ -1265,7 +1267,7 @@ export default function Profile() {
                     <>
                       {/* Main Statistics - 3 columns */}
                       <div className="profile-stats-grid" style={{ marginBottom: '32px', gridTemplateColumns: 'repeat(3, 1fr)' }}>
-                        {/* Tổng chi tiêu */}
+                        {/* Tổng chi tiêu (all-time) */}
                         <div className="profile-stat-card">
                           <div className="profile-stat-card__icon text-[#ffd159]">
                             <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

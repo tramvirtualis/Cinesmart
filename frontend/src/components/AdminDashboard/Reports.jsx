@@ -16,6 +16,14 @@ import {
 } from 'recharts';
 import { getAllOrdersAdmin } from '../../services/customer';
 import showtimeService from '../../services/showtimeService';
+import { userService } from '../../services/userService';
+
+const TIER_CONFIG = [
+  { key: 'PLATINUM', name: 'Bạch kim', color: '#7c4dff' },
+  { key: 'GOLD', name: 'Vàng', color: '#ffd159' },
+  { key: 'SILVER', name: 'Bạc', color: '#9e9e9e' },
+  { key: 'MEMBER', name: 'Thành viên', color: '#5c5c5c' },
+];
 
 // Reports Component
 function Reports({ orders: initialOrders, movies, cinemas, vouchers, users }) {
@@ -24,6 +32,7 @@ function Reports({ orders: initialOrders, movies, cinemas, vouchers, users }) {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [allShowtimes, setAllShowtimes] = useState([]);
+  const [allUsers, setAllUsers] = useState([]);
   
   // Load orders from backend
   useEffect(() => {
@@ -139,6 +148,21 @@ function Reports({ orders: initialOrders, movies, cinemas, vouchers, users }) {
     };
     
     loadOrders();
+  }, []);
+
+  // Load users for tier statistics
+  useEffect(() => {
+    const loadUsers = async () => {
+      try {
+        const result = await userService.getAllUsers({});
+        if (result.success) {
+          setAllUsers(result.data || []);
+        }
+      } catch (err) {
+        console.error('Reports: Error loading users:', err);
+      }
+    };
+    loadUsers();
   }, []);
 
   // Load all showtimes to check which movies are actually showing
@@ -510,6 +534,34 @@ function Reports({ orders: initialOrders, movies, cinemas, vouchers, users }) {
       .filter(h => h.revenue > 0);
   }, [filteredOrders]);
 
+  // Member tier distribution (customers only)
+  const tierDistribution = useMemo(() => {
+    const customerList = (allUsers.length > 0 ? allUsers : users || []).filter(u => u.role === 'USER');
+    const counts = { MEMBER: 0, SILVER: 0, GOLD: 0, PLATINUM: 0 };
+
+    customerList.forEach(customer => {
+      const tier = customer.tier || 'MEMBER';
+      if (counts[tier] !== undefined) {
+        counts[tier]++;
+      } else {
+        counts.MEMBER++;
+      }
+    });
+
+    const totalCustomers = customerList.length;
+
+    return TIER_CONFIG.map(tier => ({
+      ...tier,
+      count: counts[tier.key] || 0,
+      sharePercent: totalCustomers > 0 ? ((counts[tier.key] || 0) / totalCustomers) * 100 : 0,
+      value: counts[tier.key] || 0,
+    }));
+  }, [allUsers, users]);
+
+  const totalCustomers = useMemo(() => {
+    return tierDistribution.reduce((sum, tier) => sum + tier.count, 0);
+  }, [tierDistribution]);
+
   const formatPrice = (price) => {
     return new Intl.NumberFormat('vi-VN', {
       style: 'currency',
@@ -637,6 +689,21 @@ function Reports({ orders: initialOrders, movies, cinemas, vouchers, users }) {
           <div className="admin-stat-card__content">
             <div className="admin-stat-card__value">{formatNumber(summaryStats.totalOrders)}</div>
             <div className="admin-stat-card__label">Tổng đơn</div>
+          </div>
+        </div>
+
+        <div className="admin-stat-card">
+          <div className="admin-stat-card__icon" style={{ color: '#7c4dff' }}>
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+              <circle cx="9" cy="7" r="4"/>
+              <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+              <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+            </svg>
+          </div>
+          <div className="admin-stat-card__content">
+            <div className="admin-stat-card__value">{formatNumber(totalCustomers)}</div>
+            <div className="admin-stat-card__label">Tổng khách hàng</div>
           </div>
         </div>
 
@@ -778,6 +845,102 @@ function Reports({ orders: initialOrders, movies, cinemas, vouchers, users }) {
                   />
                 </PieChart>
               </ResponsiveContainer>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Member Tier Distribution */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(450px, 1fr))', gap: '24px' }}>
+        <div className="admin-card">
+          <div className="admin-card__header">
+            <h2 className="admin-card__title">Tỉ lệ hạng thành viên</h2>
+          </div>
+          <div className="admin-card__content">
+            {totalCustomers === 0 ? (
+              <p style={{ color: '#c9c4c5', textAlign: 'center', padding: '40px 0' }}>Chưa có dữ liệu khách hàng</p>
+            ) : (
+              <ResponsiveContainer width="100%" height={320}>
+                <PieChart>
+                  <Pie
+                    data={tierDistribution.filter(t => t.count > 0)}
+                    cx="50%"
+                    cy="50%"
+                    labelLine={true}
+                    label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(1)}%`}
+                    outerRadius={100}
+                    dataKey="value"
+                  >
+                    {tierDistribution.filter(t => t.count > 0).map((entry) => (
+                      <Cell key={entry.key} fill={entry.color} />
+                    ))}
+                  </Pie>
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: 'rgba(20, 15, 16, 0.95)',
+                      border: '1px solid rgba(255,255,255,0.1)',
+                      borderRadius: '8px',
+                      color: '#fff'
+                    }}
+                    formatter={(value, name, props) => [
+                      `${formatNumber(value)} khách (${props.payload.sharePercent.toFixed(1)}%)`,
+                      props.payload.name
+                    ]}
+                  />
+                  <Legend verticalAlign="bottom" height={36} wrapperStyle={{ fontSize: '12px' }} />
+                </PieChart>
+              </ResponsiveContainer>
+            )}
+          </div>
+        </div>
+
+        <div className="admin-card">
+          <div className="admin-card__header">
+            <h2 className="admin-card__title">Chi tiết hạng thành viên</h2>
+          </div>
+          <div className="admin-card__content">
+            <div className="admin-table">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Hạng</th>
+                    <th style={{ textAlign: 'right' }}>Số lượng</th>
+                    <th style={{ textAlign: 'right' }}>Tỉ lệ</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {tierDistribution.map((tier) => (
+                    <tr key={tier.key}>
+                      <td>
+                        <span style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '8px',
+                          fontWeight: 500
+                        }}>
+                          <span style={{
+                            width: '10px',
+                            height: '10px',
+                            borderRadius: '50%',
+                            backgroundColor: tier.color,
+                            flexShrink: 0
+                          }} />
+                          {tier.name}
+                        </span>
+                      </td>
+                      <td style={{ textAlign: 'right', color: '#ffd159' }}>{formatNumber(tier.count)}</td>
+                      <td style={{ textAlign: 'right', color: '#4caf50', fontWeight: 600 }}>
+                        {tier.sharePercent.toFixed(1)}%
+                      </td>
+                    </tr>
+                  ))}
+                  <tr style={{ borderTop: '1px solid rgba(255,255,255,0.1)' }}>
+                    <td style={{ fontWeight: 700 }}>Tổng cộng</td>
+                    <td style={{ textAlign: 'right', fontWeight: 700, color: '#fff' }}>{formatNumber(totalCustomers)}</td>
+                    <td style={{ textAlign: 'right', fontWeight: 700, color: '#fff' }}>100%</td>
+                  </tr>
+                </tbody>
+              </table>
             </div>
           </div>
         </div>

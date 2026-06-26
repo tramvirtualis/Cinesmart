@@ -234,6 +234,11 @@ public class UserService {
             cinemaComplexId = manager.getCinemaComplex() != null ? 
                     manager.getCinemaComplex().getComplexId() : null;
         }
+
+        String tier = null;
+        if (user instanceof Customer customer) {
+            tier = customer.getTier() != null ? customer.getTier().name() : "MEMBER";
+        }
         
         String address = getUserAddress(user);
         
@@ -247,6 +252,7 @@ public class UserService {
                 .role(role)
                 .cinemaComplexId(cinemaComplexId)
                 .avatar(user.getAvatar())
+                .tier(tier)
                 .build();
         
         log.debug("Mapped DTO: userId={}, role={}", dto.getUserId(), dto.getRole());

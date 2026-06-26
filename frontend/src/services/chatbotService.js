@@ -375,6 +375,33 @@ export function extractSingleAppLinkFromText(text) {
   return links.length === 1 ? links[0] : null;
 }
 
+/** Bỏ dấu tiếng Việt — giọng nói thường trả text không dấu. */
+export function normalizeViText(text) {
+  return String(text || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/đ/g, 'd')
+    .replace(/Đ/g, 'D')
+    .toLowerCase()
+    .trim();
+}
+
+function cleanUserCommand(text) {
+  return String(text || '')
+    .trim()
+    .replace(/\s+(nhé|nha|nhe|đi|di|ạ|a|please)\s*$/gi, '')
+    .trim();
+}
+
+function matchesPattern(text, pattern) {
+  const normalized = normalizeViText(text);
+  return pattern.test(text) || pattern.test(normalized);
+}
+
+function matchesAnyPattern(text, patterns) {
+  return patterns.some((pattern) => matchesPattern(text, pattern));
+}
+
 /** Từ khóa tiếng Việt → route (chỉ dùng khi user chủ động yêu cầu mở trang). */
 const NAV_INTENT_RULES = [
   { path: '/profile?tab=vouchers', patterns: [/voucher của tôi/i, /voucher đã lưu/i] },
@@ -400,45 +427,88 @@ const EXPLICIT_USER_NAV_PATTERNS = [
   /\bđi\s+tới\b/i,
   /\bxem\s+trang\b/i,
   /\bopen\b/i,
+  // Không dấu / giọng nói
+  /\bmo\s+(?:trang|link|giup|cho)\b/i,
+  /\bvao\s+(?:trang|link)\b/i,
+  /\bchuyen\s+(?:toi|minh|ban)?\s*(?:toi|den|sang|qua)\b/i,
+  /\bdua\s+(?:toi|minh)\s*(?:toi|den|sang)\b/i,
+  /\bdan\s+(?:toi|minh)\s*(?:toi|den|sang)\b/i,
 ];
 
-const SHORT_CONFIRM_PATTERN = /^(?:có|ok|oke|được|ừ|uh|yes|yep|mở đi|làm đi)\s*[!.]*$/i;
+const SHORT_CONFIRM_VALUES = new Set([
+  'có', 'co', 'ok', 'oke', 'được', 'duoc', 'ừ', 'u', 'uh', 'yes', 'yep', 'mở đi', 'mo di', 'làm đi', 'lam di',
+]);
 
 /** User chủ động yêu cầu mở/chuyển trang (không tính câu hỏi thông tin). */
-export function userExplicitlyRequestedNavigation(userMessage) {
+export function userExplicitlyRequestedNavigation(userMessage, { fromVoice = false } = {}) {
   if (!userMessage || typeof userMessage !== 'string') {
     return false;
   }
 
-  const text = userMessage.trim();
+  const text = cleanUserCommand(userMessage);
   if (!text) {
     return false;
   }
 
-  if (SHORT_CONFIRM_PATTERN.test(text)) {
+  const normalized = normalizeViText(text.replace(/[!.?]+$/g, ''));
+  if (SHORT_CONFIRM_VALUES.has(normalized)) {
     return true;
   }
 
-  const isInfoQuestion =
-    /(?:không|gì|nào|bao nhiêu|khi nào)\s*\??$/i.test(text)
-    && !EXPLICIT_USER_NAV_PATTERNS.some((pattern) => pattern.test(text));
+  if (fromVoice) {
+    if (/\b(mo|vao|open)\b/.test(normalized) && /\b(trang|link|page)\b/.test(normalized)) {
+      return true;
+    }
+    if (/^(co|duoc|ok|oke|mo di|lam di|u|yes)$/.test(normalized)) {
+      return true;
+    }
+  }
 
-  if (isInfoQuestion && !/\bmở\s+trang\b/i.test(text)) {
+  const isInfoQuestion =
+    /(?:không|khong|gì|gi|nào|nao|bao nhiêu|bao nhieu|khi nào|khi nao)\s*\??$/i.test(text)
+    && !matchesAnyPattern(text, EXPLICIT_USER_NAV_PATTERNS);
+
+  if (isInfoQuestion && !matchesPattern(text, /\bm[oở]\s+trang\b/i)) {
     return false;
   }
 
-  return EXPLICIT_USER_NAV_PATTERNS.some((pattern) => pattern.test(text));
+  return matchesAnyPattern(text, EXPLICIT_USER_NAV_PATTERNS);
 }
 
 export function inferNavPathFromText(text) {
   if (!text || typeof text !== 'string') {
     return null;
   }
+
+  const normalized = normalizeViText(text);
+
   for (const rule of NAV_INTENT_RULES) {
-    if (rule.patterns.some((pattern) => pattern.test(text))) {
+    if (rule.patterns.some((pattern) => pattern.test(text) || pattern.test(normalized))) {
       return rule.path;
     }
   }
+
+  const navAsciiKeywords = [
+    { path: '/profile?tab=vouchers', keywords: ['voucher cua toi', 'voucher da luu'] },
+    { path: '/profile?tab=wallet', keywords: ['vi cinesmart', 'vi cua toi'] },
+    { path: '/booking-history', keywords: ['lich su dat ve', 'lich su dat hang', 've da mua', 've cua toi', 'don da dat'] },
+    { path: '/transaction-history', keywords: ['lich su giao dich'] },
+    { path: '/orders', keywords: ['don hang'] },
+    { path: '/library', keywords: ['thu vien'] },
+    { path: '/food-drinks', keywords: ['do an nuoc uong', 'bap nuoc', 'do an', 'nuoc uong'] },
+    { path: '/schedule', keywords: ['lich chieu', 'suat chieu'] },
+    { path: '/book-ticket', keywords: ['dat ve'] },
+    { path: '/cinemas', keywords: ['danh sach rap', 'cac rap'] },
+    { path: '/events', keywords: ['voucher', 'khuyen mai', 'uu dai', 'su kien'] },
+    { path: '/profile', keywords: ['tai khoan', 'ho so'] },
+  ];
+
+  for (const item of navAsciiKeywords) {
+    if (item.keywords.some((keyword) => normalized.includes(keyword))) {
+      return item.path;
+    }
+  }
+
   return null;
 }
 
@@ -452,12 +522,12 @@ function extractMovieTitleHint(text) {
     return quoted[1].trim();
   }
 
-  const opened = text.match(/trang phim\s+(.+?)(?:\s+cho bạn|\s+rồi|\s+nhé|\.|$)/i);
+  const opened = text.match(/trang phim\s+(.+?)(?:\s+cho bạn|\s+cho ban|\s+rồi|\s+roi|\s+nhé|\s+nhe|\.|$)/i);
   if (opened) {
     return opened[1].replace(/^['"]|['"]$/g, '').trim();
   }
 
-  const named = text.match(/(?:mở|vào|xem)\s+(?:trang\s+)?phim\s+(.+?)(?:\s+cho|\s+nhé|\.|$)/i);
+  const named = text.match(/(?:mở|mo|vào|vao|xem)\s+(?:trang\s+)?phim\s+(.+?)(?:\s+cho|\s+nhé|\s+nhe|\.|$)/i);
   if (named) {
     return named[1].trim();
   }
@@ -472,7 +542,7 @@ async function inferMoviePathFromTexts(texts) {
     return null;
   }
 
-  const normalizedHint = titleHint.toLowerCase();
+  const normalizedHint = normalizeViText(titleHint);
   try {
     const [nowShowingRes, comingSoonRes] = await Promise.all([
       axios.get(`${API_BASE_URL}/public/movies/now-showing`, { timeout: 10_000 }),
@@ -483,7 +553,7 @@ async function inferMoviePathFromTexts(texts) {
     const movies = [...unwrap(nowShowingRes), ...unwrap(comingSoonRes)];
 
     const found = movies.find((movie) => {
-      const title = String(movie.title || movie.name || '').toLowerCase();
+      const title = normalizeViText(movie.title || movie.name || '');
       return (
         title.includes(normalizedHint)
         || normalizedHint.includes(title)
@@ -518,8 +588,9 @@ export async function resolveChatRedirect({
   action,
   target_url: targetUrl,
   currentPath,
+  fromVoice = false,
 }) {
-  const userWantsNav = userExplicitlyRequestedNavigation(userMessage);
+  const userWantsNav = userExplicitlyRequestedNavigation(userMessage, { fromVoice });
   if (!userWantsNav) {
     return null;
   }

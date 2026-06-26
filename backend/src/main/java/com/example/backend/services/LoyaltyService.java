@@ -32,6 +32,7 @@ public class LoyaltyService {
     private final OrderRepository orderRepository;
     private final WalletService walletService;
     private final WalletTransactionRepository walletTransactionRepository;
+    private final CustomerSpendingService customerSpendingService;
 
     public static final BigDecimal SILVER_THRESHOLD = new BigDecimal("1500000");
     public static final BigDecimal GOLD_THRESHOLD = new BigDecimal("2500000");
@@ -44,31 +45,14 @@ public class LoyaltyService {
 
         Customer customer = optionalCustomer.get();
         
-        // 1. Calculate spending logic (PAID total - CANCELLED total, last 12 months, excluding top-up)
+        // 1. Calculate spending using the same rules as the expense statistics tab
         List<Order> orders = orderRepository.findByUserUserIdWithDetails(customerId);
-        LocalDateTime oneYearAgo = LocalDateTime.now(ZoneId.of("Asia/Ho_Chi_Minh")).minusMonths(12);
+        BigDecimal totalSpent = customerSpendingService.calculateLast12MonthsSpent(orders);
 
-        BigDecimal paidTotal = orders.stream()
-                .filter(o -> o.getStatus() == OrderStatus.PAID)
-                .filter(o -> !Boolean.TRUE.equals(o.getIsTopUp()))
-                .filter(o -> o.getOrderDate() != null && o.getOrderDate().isAfter(oneYearAgo))
-                .map(o -> o.getTotalAmount() != null ? o.getTotalAmount() : BigDecimal.ZERO)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
-
-        BigDecimal cancelledTotal = orders.stream()
-                .filter(o -> o.getStatus() == OrderStatus.CANCELLED)
-                .filter(o -> !Boolean.TRUE.equals(o.getIsTopUp()))
-                .filter(o -> o.getOrderDate() != null && o.getOrderDate().isAfter(oneYearAgo))
-                .map(o -> o.getTotalAmount() != null ? o.getTotalAmount() : BigDecimal.ZERO)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
-
-        BigDecimal totalSpent = paidTotal.subtract(cancelledTotal);
-        if (totalSpent.compareTo(BigDecimal.ZERO) < 0) totalSpent = BigDecimal.ZERO;
-
-        BigDecimal previousSpend = customer.getTotalSpendLast12Months() != null ? customer.getTotalSpendLast12Months() : BigDecimal.ZERO;
-        
-        // Exclude the current order from previous spend to check if we crossed a threshold
-        BigDecimal newOrderAmount = newOrder.getTotalAmount() != null ? newOrder.getTotalAmount() : BigDecimal.ZERO;
+        BigDecimal newOrderAmount = customerSpendingService.isEligibleSpendingOrder(newOrder)
+                && customerSpendingService.isWithinLast12Months(newOrder, customerSpendingService.getLast12MonthsCutoff())
+                ? customerSpendingService.calculateNetSpentAmount(newOrder)
+                : BigDecimal.ZERO;
         BigDecimal spendBeforeThisOrder = totalSpent.subtract(newOrderAmount);
         if (spendBeforeThisOrder.compareTo(BigDecimal.ZERO) < 0) {
             spendBeforeThisOrder = BigDecimal.ZERO;
@@ -236,7 +220,7 @@ public class LoyaltyService {
     /**
      * Recalculate customer's tier and spending after order cancellation
      * (This only updates tier/spending, does NOT provide cashback)
-     * Formula: PAID total - CANCELLED total (both within last 12 months, no topup)
+     * Uses the same spending rules as expense statistics (last 12 months).
      */
     @Transactional
     public void recalculateTierAfterCancellation(Long customerId) {
@@ -244,28 +228,7 @@ public class LoyaltyService {
         if (optionalCustomer.isEmpty()) return;
 
         Customer customer = optionalCustomer.get();
-        List<Order> orders = orderRepository.findByUserUserIdWithDetails(customerId);
-        LocalDateTime oneYearAgo = LocalDateTime.now(ZoneId.of("Asia/Ho_Chi_Minh")).minusMonths(12);
-
-        // PAID total (last 12 months, no topup)
-        BigDecimal paidTotal = orders.stream()
-                .filter(o -> o.getStatus() == OrderStatus.PAID)
-                .filter(o -> !Boolean.TRUE.equals(o.getIsTopUp()))
-                .filter(o -> o.getOrderDate() != null && o.getOrderDate().isAfter(oneYearAgo))
-                .map(o -> o.getTotalAmount() != null ? o.getTotalAmount() : BigDecimal.ZERO)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
-
-        // CANCELLED total (last 12 months, no topup)
-        BigDecimal cancelledTotal = orders.stream()
-                .filter(o -> o.getStatus() == OrderStatus.CANCELLED)
-                .filter(o -> !Boolean.TRUE.equals(o.getIsTopUp()))
-                .filter(o -> o.getOrderDate() != null && o.getOrderDate().isAfter(oneYearAgo))
-                .map(o -> o.getTotalAmount() != null ? o.getTotalAmount() : BigDecimal.ZERO)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
-
-        // Spending = PAID - CANCELLED (cannot be negative)
-        BigDecimal totalSpent = paidTotal.subtract(cancelledTotal);
-        if (totalSpent.compareTo(BigDecimal.ZERO) < 0) totalSpent = BigDecimal.ZERO;
+        BigDecimal totalSpent = customerSpendingService.calculateLast12MonthsSpent(customerId);
 
         UserTier newTier = UserTier.MEMBER;
         if (totalSpent.compareTo(PLATINUM_THRESHOLD) >= 0) {
@@ -290,41 +253,12 @@ public class LoyaltyService {
     /**
      * Calculate current spending for a customer in the last 12 months
      * (Real-time calculation from orders, not from stored value)
-     * Formula: Spending = Total PAID orders - Total CANCELLED orders (both within last 12 months, excluding topup)
+     * Uses the same rules as expense statistics, limited to the last 12 months.
      */
     @Transactional(readOnly = true)
     public BigDecimal calculateCurrentSpending(Long customerId) {
-        List<Order> orders = orderRepository.findByUserUserIdWithDetails(customerId);
-        LocalDateTime oneYearAgo = LocalDateTime.now(ZoneId.of("Asia/Ho_Chi_Minh")).minusMonths(12);
-
-        log.info("DEBUG calculateCurrentSpending - customerId: {}, total orders: {}", customerId, orders.size());
-        for (Order o : orders) {
-            log.info("DEBUG order: id={}, status={}, amount={}, orderDate={}, isTopUp={}", 
-                o.getOrderId(), o.getStatus(), o.getTotalAmount(), o.getOrderDate(), o.getIsTopUp());
-        }
-
-        // Calculate PAID total (last 12 months, not topup)
-        BigDecimal paidTotal = orders.stream()
-                .filter(o -> o.getStatus() == OrderStatus.PAID)
-                .filter(o -> !Boolean.TRUE.equals(o.getIsTopUp()))
-                .filter(o -> o.getOrderDate() != null && o.getOrderDate().isAfter(oneYearAgo))
-                .map(o -> o.getTotalAmount() != null ? o.getTotalAmount() : BigDecimal.ZERO)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
-
-        // Calculate CANCELLED total (refunded, last 12 months, not topup)
-        BigDecimal cancelledTotal = orders.stream()
-                .filter(o -> o.getStatus() == OrderStatus.CANCELLED)
-                .filter(o -> !Boolean.TRUE.equals(o.getIsTopUp()))
-                .filter(o -> o.getOrderDate() != null && o.getOrderDate().isAfter(oneYearAgo))
-                .map(o -> o.getTotalAmount() != null ? o.getTotalAmount() : BigDecimal.ZERO)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
-
-        BigDecimal result = paidTotal.subtract(cancelledTotal);
-        if (result.compareTo(BigDecimal.ZERO) < 0) result = BigDecimal.ZERO;
-        log.info("DEBUG spending calculation - customerId: {}, paidTotal: {}, cancelledTotal: {}, result: {}", 
-            customerId, paidTotal, cancelledTotal, result);
-
-        // Spending = PAID - CANCELLED (cannot be negative)
+        BigDecimal result = customerSpendingService.calculateLast12MonthsSpent(customerId);
+        log.info("DEBUG calculateCurrentSpending - customerId: {}, result: {}", customerId, result);
         return result;
     }
 
@@ -366,30 +300,9 @@ public class LoyaltyService {
     public java.util.Map<String, Object> syncAllTiers() {
         List<Customer> customers = customerRepository.findAll();
         int updatedCount = 0;
-        LocalDateTime oneYearAgo = LocalDateTime.now(ZoneId.of("Asia/Ho_Chi_Minh")).minusMonths(12);
 
         for (Customer customer : customers) {
-            List<Order> orders = orderRepository.findByUserUserIdWithDetails(customer.getUserId());
-            
-            // Calculate PAID total (last 12 months, not topup)
-            BigDecimal paidTotal = orders.stream()
-                .filter(o -> o.getStatus() == OrderStatus.PAID)
-                .filter(o -> !Boolean.TRUE.equals(o.getIsTopUp()))
-                .filter(o -> o.getOrderDate() != null && o.getOrderDate().isAfter(oneYearAgo))
-                .map(o -> o.getTotalAmount() != null ? o.getTotalAmount() : BigDecimal.ZERO)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
-
-            // Calculate CANCELLED total (refunded, last 12 months, not topup)
-            BigDecimal cancelledTotal = orders.stream()
-                .filter(o -> o.getStatus() == OrderStatus.CANCELLED)
-                .filter(o -> !Boolean.TRUE.equals(o.getIsTopUp()))
-                .filter(o -> o.getOrderDate() != null && o.getOrderDate().isAfter(oneYearAgo))
-                .map(o -> o.getTotalAmount() != null ? o.getTotalAmount() : BigDecimal.ZERO)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
-
-            // Spending = PAID - CANCELLED (cannot be negative)
-            BigDecimal totalSpent = paidTotal.subtract(cancelledTotal);
-            if (totalSpent.compareTo(BigDecimal.ZERO) < 0) totalSpent = BigDecimal.ZERO;
+            BigDecimal totalSpent = customerSpendingService.calculateLast12MonthsSpent(customer.getUserId());
 
             UserTier newTier = UserTier.MEMBER;
             if (totalSpent.compareTo(PLATINUM_THRESHOLD) >= 0) {
@@ -416,68 +329,56 @@ public class LoyaltyService {
     @Transactional(readOnly = true)
     public java.util.Map<String, Object> debugSpendingCalculation(Long customerId) {
         List<Order> orders = orderRepository.findByUserUserIdWithDetails(customerId);
-        LocalDateTime oneYearAgo = LocalDateTime.now(ZoneId.of("Asia/Ho_Chi_Minh")).minusMonths(12);
-        LocalDateTime now = LocalDateTime.now(ZoneId.of("Asia/Ho_Chi_Minh"));
+        LocalDateTime cutoff = customerSpendingService.getLast12MonthsCutoff();
+        LocalDateTime now = LocalDateTime.now(CustomerSpendingService.VIETNAM_ZONE);
 
-        java.util.List<java.util.Map<String, Object>> includedPaid = new java.util.ArrayList<>();
-        java.util.List<java.util.Map<String, Object>> includedCancelled = new java.util.ArrayList<>();
+        java.util.List<java.util.Map<String, Object>> included = new java.util.ArrayList<>();
         java.util.List<java.util.Map<String, Object>> excluded = new java.util.ArrayList<>();
 
-        BigDecimal paidTotal = BigDecimal.ZERO;
-        BigDecimal cancelledTotal = BigDecimal.ZERO;
+        BigDecimal totalSpent = BigDecimal.ZERO;
 
         for (Order o : orders) {
             java.util.Map<String, Object> info = new java.util.LinkedHashMap<>();
             info.put("orderId", o.getOrderId());
             info.put("status", o.getStatus() != null ? o.getStatus().name() : "null");
             info.put("totalAmount", o.getTotalAmount());
+            info.put("refundAmount", o.getRefundAmount());
+            info.put("paymentMethod", o.getPaymentMethod() != null ? o.getPaymentMethod().name() : "null");
+            info.put("vnpPayDate", o.getVnpPayDate() != null ? o.getVnpPayDate().toString() : "NULL");
             info.put("orderDate", o.getOrderDate() != null ? o.getOrderDate().toString() : "NULL");
             info.put("isTopUp", o.getIsTopUp());
+            info.put("in12MonthRange", customerSpendingService.isWithinLast12Months(o, cutoff));
 
-            boolean isTopUp = Boolean.TRUE.equals(o.getIsTopUp());
-            boolean hasDate = o.getOrderDate() != null;
-            boolean inRange = hasDate && o.getOrderDate().isAfter(oneYearAgo);
-            boolean isPaid = o.getStatus() == OrderStatus.PAID;
-            boolean isCancelled = o.getStatus() == OrderStatus.CANCELLED;
-
-            info.put("in12MonthRange", inRange);
-
-            if (isTopUp) {
-                info.put("reason", "EXCLUDED - isTopUp=true");
+            if (!customerSpendingService.isEligibleSpendingOrder(o)) {
+                if (Boolean.TRUE.equals(o.getIsTopUp())) {
+                    info.put("reason", "EXCLUDED - isTopUp=true");
+                } else if (o.getVnpPayDate() == null) {
+                    info.put("reason", "EXCLUDED - vnpPayDate is NULL");
+                } else if (o.getPaymentMethod() == PaymentMethod.WALLET) {
+                    info.put("reason", "EXCLUDED - paid by WALLET");
+                } else {
+                    info.put("reason", "EXCLUDED - not eligible");
+                }
                 excluded.add(info);
-            } else if (!hasDate) {
-                info.put("reason", "EXCLUDED - orderDate is NULL");
+            } else if (!customerSpendingService.isWithinLast12Months(o, cutoff)) {
+                info.put("reason", "EXCLUDED - orderDate before cutoff " + cutoff);
                 excluded.add(info);
-            } else if (!inRange) {
-                info.put("reason", "EXCLUDED - orderDate " + o.getOrderDate() + " before cutoff " + oneYearAgo);
-                excluded.add(info);
-            } else if (isPaid) {
-                info.put("reason", "INCLUDED in PAID");
-                paidTotal = paidTotal.add(o.getTotalAmount() != null ? o.getTotalAmount() : BigDecimal.ZERO);
-                includedPaid.add(info);
-            } else if (isCancelled) {
-                info.put("reason", "INCLUDED in CANCELLED (subtracted)");
-                cancelledTotal = cancelledTotal.add(o.getTotalAmount() != null ? o.getTotalAmount() : BigDecimal.ZERO);
-                includedCancelled.add(info);
             } else {
-                info.put("reason", "EXCLUDED - status=" + o.getStatus() + " (PENDING or other)");
-                excluded.add(info);
+                BigDecimal netAmount = customerSpendingService.calculateNetSpentAmount(o);
+                info.put("netAmount", netAmount);
+                info.put("reason", "INCLUDED");
+                totalSpent = totalSpent.add(netAmount);
+                included.add(info);
             }
         }
-
-        BigDecimal calcResult = paidTotal.subtract(cancelledTotal);
-        if (calcResult.compareTo(BigDecimal.ZERO) < 0) calcResult = BigDecimal.ZERO;
 
         java.util.Map<String, Object> summary = new java.util.LinkedHashMap<>();
         summary.put("customerId", customerId);
         summary.put("now", now.toString());
-        summary.put("oneYearAgo_cutoff", oneYearAgo.toString());
+        summary.put("oneYearAgo_cutoff", cutoff.toString());
         summary.put("totalOrdersFound", orders.size());
-        summary.put("paidTotal", paidTotal);
-        summary.put("cancelledTotal", cancelledTotal);
-        summary.put("calculatedSpend_PAID_minus_CANCELLED", calcResult);
-        summary.put("includedPaidOrders", includedPaid);
-        summary.put("includedCancelledOrders", includedCancelled);
+        summary.put("calculatedSpend", totalSpent);
+        summary.put("includedOrders", included);
         summary.put("excludedOrders", excluded);
         return summary;
     }
