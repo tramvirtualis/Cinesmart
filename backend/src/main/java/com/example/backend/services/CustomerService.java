@@ -22,6 +22,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -150,7 +151,14 @@ public class CustomerService {
             return new ArrayList<>();
         }
 
+        LocalDateTime now = LocalDateTime.now();
         return customer.getVouchers().stream()
+                .filter(v -> {
+                    if (v.getEndDate() == null) return true;
+                    // Voucher hết hạn vào cuối ngày của endDate
+                    LocalDateTime endOfDay = v.getEndDate().toLocalDate().atTime(23, 59, 59);
+                    return !now.isAfter(endOfDay);
+                })
                 .map(this::mapToDTO)
                 .collect(Collectors.toList());
     }

@@ -10,6 +10,7 @@ import com.example.backend.entities.Customer;
 import com.example.backend.entities.enums.VoucherScope;
 import com.example.backend.repositories.VoucherRepository;
 import com.example.backend.repositories.CustomerRepository;
+import com.example.backend.repositories.OrderRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.kie.api.runtime.KieContainer;
@@ -32,6 +33,7 @@ public class VoucherService {
     
     private final VoucherRepository voucherRepository;
     private final CustomerRepository customerRepository;
+    private final OrderRepository orderRepository;
     private final NotificationService notificationService;
     private final ActivityLogService activityLogService;
     private final KieContainer kieContainer;
@@ -160,6 +162,26 @@ public class VoucherService {
         Voucher voucher = voucherRepository.findById(voucherId)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy voucher với ID: " + voucherId));
         
+        // Kiểm tra xem voucher đã được sử dụng trong đơn hàng nào chưa
+        if (orderRepository.existsByVoucherVoucherId(voucherId)) {
+            throw new RuntimeException("Không thể xóa voucher đã được sử dụng trong đơn hàng");
+        }
+        
+        // Kiểm tra xem voucher có đang được khách hàng nào sở hữu không
+        if (customerRepository.existsByVouchersVoucherId(voucherId)) {
+            // Nếu voucher đã hết hạn, cho phép tự động unassign khỏi tất cả khách hàng để xóa
+            LocalDateTime now = LocalDateTime.now();
+            LocalDateTime endOfDay = voucher.getEndDate() != null 
+                    ? voucher.getEndDate().toLocalDate().atTime(23, 59, 59) 
+                    : null;
+            
+            if (endOfDay != null && now.isAfter(endOfDay)) {
+                customerRepository.unassignVoucherFromAllCustomers(voucherId);
+            } else {
+                throw new RuntimeException("Voucher hiện đang có người sở hữu, không thể xóa");
+            }
+        }
+
         String voucherName = voucher.getName();
         voucherRepository.delete(voucher);
         
