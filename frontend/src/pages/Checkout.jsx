@@ -765,6 +765,41 @@ export default function Checkout() {
     return Math.max(0, subtotal - discount);
   };
 
+  const getCashbackInfo = () => {
+    const userDataStr = localStorage.getItem('user');
+    if (!userDataStr) return null;
+    
+    try {
+      const user = JSON.parse(userDataStr);
+      const tier = user.tier || 'MEMBER';
+      
+      if (tier === 'MEMBER') return null;
+      
+      let ticketRate = 0;
+      let foodRate = 0;
+      
+      if (tier === 'SILVER') { ticketRate = 0.05; foodRate = 0.03; }
+      else if (tier === 'GOLD') { ticketRate = 0.07; foodRate = 0.04; }
+      else if (tier === 'PLATINUM') { ticketRate = 0.10; foodRate = 0.05; }
+      
+      if (ticketRate === 0 && foodRate === 0) return null;
+      
+      const subtotal = getSubtotal();
+      const totalAmount = getTotalAmount();
+      
+      if (subtotal <= 0 || totalAmount <= 0) return null;
+      
+      const discountRatio = totalAmount / subtotal;
+      const ticketTotal = (bookingData?.totalPrice || 0) * discountRatio;
+      const foodTotal = (cartData?.totalAmount || 0) * discountRatio;
+      
+      const cashback = Math.round(ticketTotal * ticketRate + foodTotal * foodRate);
+      return cashback > 0 ? { amount: cashback, tier } : null;
+    } catch (e) {
+      return null;
+    }
+  };
+
   const handleVoucherSelect = (voucher) => {
     if (selectedVoucher?.voucherId === voucher.voucherId) {
       setSelectedVoucher(null);
@@ -1078,6 +1113,27 @@ export default function Checkout() {
                       <span className="text-lg font-semibold text-white">Tổng cộng:</span>
                       <span className="text-2xl font-extrabold text-[#ffd159]">{formatPrice(getTotalAmount())}</span>
                     </div>
+
+                    {/* Cashback Info */}
+                    {(() => {
+                      const cashback = getCashbackInfo();
+                      if (cashback) {
+                        return (
+                          <div className="mt-2 p-3 bg-[#4caf50]/10 border border-[#4caf50]/20 rounded-lg flex items-center gap-2">
+                             <div className="w-8 h-8 rounded-full bg-[#4caf50]/20 flex items-center justify-center flex-shrink-0">
+                               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#4caf50" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                 <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                                 <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                               </svg>
+                             </div>
+                             <span className="text-xs font-semibold text-[#4caf50]">
+                               Bạn sẽ được hoàn <span className="text-sm font-bold underline">{formatPrice(cashback.amount)}</span> vào ví sau khi thanh toán thành công
+                             </span>
+                          </div>
+                        );
+                      }
+                      return null;
+                    })()}
                   </div>
 
                   {/* Submit Button */}
