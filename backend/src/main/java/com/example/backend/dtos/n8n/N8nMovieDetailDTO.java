@@ -14,6 +14,7 @@ import java.util.List;
 @Builder
 public class N8nMovieDetailDTO {
     private Long id;
+
     private String title;
     private List<String> genres;
     private Integer duration;
@@ -23,6 +24,5 @@ public class N8nMovieDetailDTO {
     private String director;
     private String actor;
     private String description;
-    /** Link trang chi tiết phim trên frontend */
     private String url;
 }

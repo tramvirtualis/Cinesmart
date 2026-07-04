@@ -12,15 +12,10 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class N8nMovieSummaryDTO {
-    private Long id;
-
-    private String title;
-    private List<String> genres;
-    private Integer duration;
-    private LocalDate releaseDate;
-    /** Human-readable, e.g. "Đang chiếu" */
-    private String status;
+public class N8nMovieListResponseDTO {
     private String listType;
-    private String url;
+    private String description;
+    private LocalDate date;
+    private String province;
+    private List<N8nMovieSummaryDTO> movies;
 }

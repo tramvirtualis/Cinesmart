@@ -9,12 +9,20 @@ import com.example.backend.dtos.N8nWebhookRequestDTO;
 import com.example.backend.dtos.NotificationDTO;
 import com.example.backend.dtos.n8n.N8nAppPageDTO;
 import com.example.backend.dtos.n8n.N8nCinemaSummaryDTO;
+import com.example.backend.dtos.CinemaComplexResponseDTO;
+import com.example.backend.dtos.n8n.N8nFoodMenuDTO;
+import com.example.backend.dtos.n8n.N8nFoodMenuListResponseDTO;
 import com.example.backend.dtos.n8n.N8nMovieDetailDTO;
+import com.example.backend.dtos.n8n.N8nMovieListResponseDTO;
 import com.example.backend.dtos.n8n.N8nMovieSummaryDTO;
 import com.example.backend.dtos.n8n.N8nOrderSummaryDTO;
 import com.example.backend.dtos.n8n.N8nPriceSummaryDTO;
+import com.example.backend.dtos.n8n.N8nShowtimeListResponseDTO;
 import com.example.backend.dtos.n8n.N8nShowtimeSummaryDTO;
 import com.example.backend.dtos.n8n.N8nVoucherSummaryDTO;
+import com.example.backend.entities.Movie;
+import com.example.backend.repositories.MovieRepository;
+import com.example.backend.repositories.ShowtimeRepository;
 import com.example.backend.entities.enums.VoucherScope;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -41,6 +49,7 @@ public class N8nService {
 
     private final N8nProperties n8nProperties;
     private final MovieService movieService;
+    private final MovieRepository movieRepository;
     private final ShowtimeService showtimeService;
     private final OrderService orderService;
     private final CinemaComplexService cinemaComplexService;
@@ -48,6 +57,8 @@ public class N8nService {
     private final N8nAgentMapper n8nAgentMapper;
     private final PriceService priceService;
     private final VoucherService voucherService;
+    private final FoodComboService foodComboService;
+    private final ShowtimeRepository showtimeRepository;
     private final ObjectMapper objectMapper;
     private final RestTemplate restTemplate = createRestTemplate();
 
@@ -82,40 +93,240 @@ public class N8nService {
         return status;
     }
 
-    public List<N8nMovieSummaryDTO> getMoviesForAgent(String status) {
+    public N8nMovieListResponseDTO getMoviesForAgent(String status) {
         List<MovieResponseDTO> movies;
+        String listType;
+        String description;
 
         if (status == null || status.isBlank() || "ALL".equalsIgnoreCase(status)) {
             movies = movieService.getAllMovies();
-        } else if ("NOW_SHOWING".equalsIgnoreCase(status)) {
+            listType = "Tất cả phim";
+            description = "Danh sách toàn bộ phim trên hệ thống Cinesmart.";
+        } else if (isNowShowingStatus(status)) {
             movies = movieService.getNowShowingMovies();
-        } else if ("COMING_SOON".equalsIgnoreCase(status)) {
+            listType = N8nAgentMapper.LIST_TYPE_NOW_SHOWING;
+            description = "Phim đang chiếu trong danh mục rạp (đã từng/đang có lịch). "
+                    + "Danh sách này KHÔNG đảm bảo còn suất vào ngày hoặc thành phố cụ thể. "
+                    + "Nếu khách hỏi suất hôm nay/ngày mai hoặc theo thành phố → dùng get_movies_with_showtimes.";
+        } else if (isComingSoonStatus(status)) {
             movies = movieService.getComingSoonMovies();
+            listType = "Phim sắp chiếu";
+            description = "Phim sắp ra mắt, chưa có suất chiếu trên hệ thống.";
         } else {
-            throw new IllegalArgumentException("status không hợp lệ. Dùng: NOW_SHOWING, COMING_SOON hoặc để trống");
+            throw new IllegalArgumentException(
+                    "status không hợp lệ. Dùng: NOW_SHOWING, COMING_SOON hoặc để trống");
         }
 
-        return movies.stream()
-                .map(n8nAgentMapper::toMovieSummary)
+        List<N8nMovieSummaryDTO> movieList = movies.stream()
+                .map(movie -> n8nAgentMapper.toMovieSummary(movie, listType))
                 .toList();
+
+        return N8nMovieListResponseDTO.builder()
+                .listType(listType)
+                .description(description)
+                .movies(movieList)
+                .build();
     }
 
-    public N8nMovieDetailDTO getMovieDetailForAgent(Long movieId) {
-        return n8nAgentMapper.toMovieDetail(movieService.getMovieById(movieId));
-    }
+    public N8nMovieListResponseDTO getMoviesWithShowtimesForAgent(String date, String province) {
+        date = sanitizeN8nParameter(date);
+        province = sanitizeN8nParameter(province);
 
-    public List<N8nShowtimeSummaryDTO> getShowtimesForAgent(Long movieId, String province, String date) {
-        if (movieId == null) {
-            throw new IllegalArgumentException("movieId là bắt buộc");
+        LocalDate localDate;
+        if (date == null) {
+            localDate = LocalDate.now();
+        } else {
+            try {
+                localDate = LocalDate.parse(date);
+                if (localDate.getYear() < LocalDate.now().getYear()) {
+                    localDate = localDate.withYear(LocalDate.now().getYear());
+                }
+                if (localDate.isBefore(LocalDate.now())) {
+                    localDate = LocalDate.now();
+                }
+            } catch (Exception e) {
+                localDate = LocalDate.now();
+            }
         }
-        if (date == null || date.isBlank()) {
+
+        LocalDateTime startOfDay = localDate.atStartOfDay();
+        LocalDateTime endOfDay = localDate.plusDays(1).atStartOfDay();
+        LocalDateTime now = LocalDateTime.now();
+        if (localDate.equals(LocalDate.now()) && now.isAfter(startOfDay)) {
+            startOfDay = now;
+        }
+
+        List<Movie> movies = showtimeRepository.findMoviesWithPublicShowtimesOnDate(
+                startOfDay, endOfDay, province);
+
+        List<N8nMovieSummaryDTO> movieList = movies.stream()
+                .map(movie -> movieService.getMovieById(movie.getMovieId()))
+                .map(movie -> n8nAgentMapper.toMovieSummary(movie, N8nAgentMapper.LIST_TYPE_WITH_SHOWTIMES))
+                .toList();
+
+        String provinceLabel = province != null ? province : "toàn quốc";
+        return N8nMovieListResponseDTO.builder()
+                .listType(N8nAgentMapper.LIST_TYPE_WITH_SHOWTIMES)
+                .description("Phim đang có suất chiếu còn vé vào ngày " + localDate + " tại " + provinceLabel + ". "
+                        + "Đây là danh sách đúng khi khách hỏi 'phim gì chiếu hôm nay', 'có suất nào', 'đặt vé được phim gì'.")
+                .date(localDate)
+                .province(province)
+                .movies(movieList)
+                .build();
+    }
+
+    private MovieResponseDTO resolveMovie(Long movieId, String movieTitle) {
+        if (movieId != null) {
+            return movieService.getMovieById(movieId);
+        } else if (movieTitle != null && !movieTitle.isBlank()) {
+            List<Movie> movies = movieRepository.findByTitleContainingIgnoreCase(movieTitle.trim());
+            if (movies.isEmpty()) {
+                throw new IllegalArgumentException("Không tìm thấy phim nào có tên chứa: " + movieTitle);
+            }
+            // Trả về phim đầu tiên tìm thấy
+            Movie firstMatch = movies.get(0);
+            return movieService.getMovieById(firstMatch.getMovieId());
+        }
+        throw new IllegalArgumentException("Phải cung cấp movieId hoặc movieTitle");
+    }
+
+    public N8nMovieDetailDTO getMovieDetailForAgent(Long movieId, String movieTitle) {
+        MovieResponseDTO movie = resolveMovie(movieId, movieTitle);
+        return n8nAgentMapper.toMovieDetail(movie);
+    }
+
+    public N8nShowtimeListResponseDTO getShowtimesForAgent(Long movieId, String movieTitle, String province, String date) {
+        MovieResponseDTO movie = resolveMovie(movieId, movieTitle);
+        date = sanitizeN8nParameter(date);
+        province = sanitizeN8nParameter(province);
+
+        if (date == null) {
             throw new IllegalArgumentException("date là bắt buộc (định dạng yyyy-MM-dd)");
         }
 
-        LocalDate localDate = LocalDate.parse(date);
-        return showtimeService.getPublicShowtimes(movieId, province, localDate).stream()
+        LocalDate localDate;
+        try {
+            localDate = LocalDate.parse(date);
+            if (localDate.getYear() < LocalDate.now().getYear()) {
+                localDate = localDate.withYear(LocalDate.now().getYear());
+            }
+            if (localDate.isBefore(LocalDate.now())) {
+                localDate = LocalDate.now();
+            }
+        } catch (Exception e) {
+            throw new IllegalArgumentException("Định dạng ngày không hợp lệ: " + date);
+        }
+        List<N8nShowtimeSummaryDTO> showtimes = showtimeService
+                .getPublicShowtimes(movie.getMovieId(), province, localDate).stream()
                 .map(n8nAgentMapper::toShowtimeSummary)
                 .toList();
+
+        String provinceLabel = province != null ? province : "toàn quốc";
+        String description = showtimes.isEmpty()
+                ? "Phim \"" + movie.getTitle() + "\" không có suất chiếu còn vé vào ngày "
+                        + localDate + " tại " + provinceLabel + "."
+                : "Các suất chiếu còn vé của phim \"" + movie.getTitle() + "\" vào ngày "
+                        + localDate + " tại " + provinceLabel + ".";
+
+        return N8nShowtimeListResponseDTO.builder()
+                .movieTitle(movie.getTitle())
+                .date(localDate)
+                .province(province)
+                .description(description)
+                .showtimes(showtimes)
+                .build();
+    }
+
+    private boolean isNowShowingStatus(String status) {
+        return "NOW_SHOWING".equalsIgnoreCase(status)
+                || "DANG_CHIEU".equalsIgnoreCase(status)
+                || "DANG CHIEU".equalsIgnoreCase(status);
+    }
+
+    private boolean isComingSoonStatus(String status) {
+        return "COMING_SOON".equalsIgnoreCase(status)
+                || "SAP_CHIEU".equalsIgnoreCase(status)
+                || "SAP CHIEU".equalsIgnoreCase(status);
+    }
+
+    private String sanitizeN8nParameter(String param) {
+        if (param == null) return null;
+        param = param.trim();
+        if (param.startsWith("=")) {
+            param = param.substring(1).trim();
+        }
+        if (param.equals("[object Object]") || param.isBlank()) {
+            return null;
+        }
+        return param;
+    }
+
+    public N8nFoodMenuListResponseDTO getFoodCombosForAgent(Long cinemaId, String cinemaName, String province) {
+        String foodDrinksUrl = n8nAgentMapper.buildFoodDrinksUrl();
+        String sanitizedProvince = sanitizeN8nParameter(province);
+        String sanitizedCinemaName = sanitizeN8nParameter(cinemaName);
+
+        if (cinemaId == null && sanitizedCinemaName == null && sanitizedProvince == null) {
+            return N8nFoodMenuListResponseDTO.builder()
+                    .description("Đồ ăn/nước uống bán theo từng rạp. Gọi get_cinema_complexes lấy id rạp, "
+                            + "hoặc truyền cinemaName / province để tra cứu.")
+                    .url(foodDrinksUrl)
+                    .menus(List.of())
+                    .build();
+        }
+
+        List<CinemaComplexResponseDTO> cinemas;
+        if (cinemaId != null) {
+            CinemaComplexResponseDTO cinema = cinemaComplexService.getAllCinemaComplexes().stream()
+                    .filter(c -> cinemaId.equals(c.getComplexId()))
+                    .findFirst()
+                    .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy rạp với id: " + cinemaId));
+            cinemas = List.of(cinema);
+        } else if (sanitizedCinemaName != null) {
+            cinemas = cinemaComplexService.getAllCinemaComplexes().stream()
+                    .filter(c -> c.getName().toLowerCase().contains(sanitizedCinemaName.toLowerCase()))
+                    .toList();
+            if (cinemas.isEmpty()) {
+                throw new IllegalArgumentException("Không tìm thấy rạp có tên chứa: " + sanitizedCinemaName);
+            }
+        } else {
+            cinemas = cinemaComplexService.getAllCinemaComplexes().stream()
+                    .filter(c -> matchesProvinceFilter(c, sanitizedProvince))
+                    .toList();
+            if (cinemas.isEmpty()) {
+                throw new IllegalArgumentException("Không tìm thấy rạp tại: " + sanitizedProvince);
+            }
+        }
+
+        List<N8nFoodMenuDTO> menus = cinemas.stream()
+                .map(cinema -> n8nAgentMapper.toFoodMenu(
+                        cinema,
+                        foodComboService.getFoodCombosByCinemaComplexId(cinema.getComplexId())))
+                .toList();
+
+        String description;
+        if (menus.isEmpty()) {
+            description = "Không tìm thấy menu đồ ăn cho bộ lọc hiện tại.";
+        } else if (cinemaId != null || sanitizedCinemaName != null) {
+            description = "Menu đồ ăn/nước uống tại rạp " + menus.get(0).getCinemaName() + ".";
+        } else {
+            description = "Menu đồ ăn/nước uống tại các rạp ở " + sanitizedProvince + ".";
+        }
+
+        return N8nFoodMenuListResponseDTO.builder()
+                .description(description)
+                .url(foodDrinksUrl)
+                .menus(menus)
+                .build();
+    }
+
+    private boolean matchesProvinceFilter(CinemaComplexResponseDTO cinema, String province) {
+        if (province == null) {
+            return true;
+        }
+        String cinemaProvince = cinema.getAddressProvince();
+        return cinemaProvince != null
+                && cinemaProvince.toLowerCase().contains(province.toLowerCase());
     }
 
     public List<N8nCinemaSummaryDTO> getCinemasForAgent() {
@@ -326,30 +537,61 @@ public class N8nService {
                 return;
             }
             Map<String, Object> json = objectMapper.readValue(trimmed, new TypeReference<>() {});
-            Map<String, Object> meta = new HashMap<>();
-            Object action = json.get("action");
-            if (action != null && !String.valueOf(action).isBlank()) {
-                meta.put("action", String.valueOf(action).trim().toUpperCase());
-            }
-            Object targetUrl = json.get("target_url");
-            if (targetUrl == null) {
-                targetUrl = json.get("targetUrl");
-            }
-            if (targetUrl != null && !String.valueOf(targetUrl).isBlank()) {
-                meta.put("target_url", String.valueOf(targetUrl).trim());
-            }
-            Object responseAiAgent = json.get("response_ai_agent");
-            if (responseAiAgent == null) {
-                responseAiAgent = json.get("responseAiAgent");
-            }
-            if (responseAiAgent != null && !String.valueOf(responseAiAgent).isBlank()) {
-                meta.put("response_ai_agent", String.valueOf(responseAiAgent).trim());
-            }
-            if (!meta.isEmpty()) {
-                lastChatMeta.set(meta);
+            mergeChatMetaFromMap(json);
+            Object replyField = json.get("reply");
+            if (replyField instanceof String replyText) {
+                mergeChatMetaFromJsonString(replyText);
             }
         } catch (Exception e) {
             log.debug("Could not parse chat meta from n8n body: {}", e.getMessage());
+        }
+    }
+
+    private void mergeChatMetaFromMap(Map<String, Object> json) {
+        if (json == null || json.isEmpty()) {
+            return;
+        }
+        Map<String, Object> meta = lastChatMeta.get() != null
+                ? new HashMap<>(lastChatMeta.get())
+                : new HashMap<>();
+
+        Object action = json.get("action");
+        if (action != null && !String.valueOf(action).isBlank()) {
+            meta.put("action", String.valueOf(action).trim().toUpperCase());
+        }
+        Object targetUrl = json.get("target_url");
+        if (targetUrl == null) {
+            targetUrl = json.get("targetUrl");
+        }
+        if (targetUrl != null && !String.valueOf(targetUrl).isBlank()) {
+            meta.put("target_url", String.valueOf(targetUrl).trim());
+        }
+        Object responseAiAgent = json.get("response_ai_agent");
+        if (responseAiAgent == null) {
+            responseAiAgent = json.get("responseAiAgent");
+        }
+        if (responseAiAgent != null && !String.valueOf(responseAiAgent).isBlank()) {
+            meta.put("response_ai_agent", String.valueOf(responseAiAgent).trim());
+        }
+
+        if (!meta.isEmpty()) {
+            lastChatMeta.set(meta);
+        }
+    }
+
+    private void mergeChatMetaFromJsonString(String text) {
+        if (text == null || text.isBlank()) {
+            return;
+        }
+        String trimmed = text.trim();
+        if (!trimmed.startsWith("{")) {
+            return;
+        }
+        try {
+            Map<String, Object> json = objectMapper.readValue(trimmed, new TypeReference<>() {});
+            mergeChatMetaFromMap(json);
+        } catch (Exception e) {
+            log.debug("Could not parse nested chat meta JSON: {}", e.getMessage());
         }
     }
 
@@ -358,7 +600,25 @@ public class N8nService {
             return "";
         }
         if (value instanceof String text) {
-            return text.trim();
+            String trimmed = text.trim();
+            if (trimmed.startsWith("{") || trimmed.startsWith("[")) {
+                try {
+                    mergeChatMetaFromJsonString(trimmed.startsWith("{") ? trimmed : null);
+                    if (trimmed.startsWith("[")) {
+                        List<Object> array = objectMapper.readValue(trimmed, new TypeReference<>() {});
+                        if (!array.isEmpty()) {
+                            return extractReplyFromValue(array.get(0));
+                        }
+                    } else {
+                        Map<String, Object> parsed = objectMapper.readValue(trimmed, new TypeReference<>() {});
+                        mergeChatMetaFromMap(parsed);
+                        return extractReplyFromValue(parsed);
+                    }
+                } catch (Exception e) {
+                    log.debug("Could not parse reply JSON string: {}", e.getMessage());
+                }
+            }
+            return trimmed;
         }
         if (value instanceof Map<?, ?> map) {
             for (String key : List.of("reply", "output", "response_ai_agent", "text", "message", "response")) {
@@ -407,7 +667,8 @@ public class N8nService {
         if (lower.contains("lich chieu") || lower.contains("lịch chiếu")
                 || lower.contains("suất chiếu") || lower.contains("suat chieu")
                 || lower.contains("suất") || lower.contains("chiếu")) {
-            return "Vào mục Lịch chiếu để xem suất theo ngày và rạp. Mình cũng có thể gợi ý phim hot tuần này!";
+            return "Vào mục Lịch chiếu để xem suất theo ngày và rạp. "
+                    + "Bạn có thể hỏi mình \"phim nào có suất hôm nay ở HCM\" để xem phim đang chiếu thực tế nhé!";
         }
         if (lower.contains("khuyen mai") || lower.contains("khuyến mãi")
                 || lower.contains("voucher") || lower.contains("giảm giá") || lower.contains("giam gia")) {
@@ -449,20 +710,22 @@ public class N8nService {
     }
 
     private String buildNowShowingReply() {
-        List<MovieResponseDTO> movies = movieService.getNowShowingMovies();
-        if (movies.isEmpty()) {
-            return "Hiện chưa có phim đang chiếu. Bạn vào mục Lịch chiếu trên website để cập nhật suất mới nhất nhé!";
+        N8nMovieListResponseDTO catalog = getMoviesForAgent("NOW_SHOWING");
+        if (catalog.getMovies() == null || catalog.getMovies().isEmpty()) {
+            return "Hiện chưa có phim trong danh mục đang chiếu. "
+                    + "Bạn hỏi \"phim nào có suất hôm nay\" để xem phim đang chiếu thực tế nhé!";
         }
 
         StringBuilder sb = new StringBuilder("Phim đang chiếu tại Cinesmart:\n");
-        int limit = Math.min(5, movies.size());
+        int limit = Math.min(5, catalog.getMovies().size());
         for (int i = 0; i < limit; i++) {
-            sb.append("• ").append(movies.get(i).getTitle()).append('\n');
+            sb.append("• ").append(catalog.getMovies().get(i).getTitle()).append('\n');
         }
-        if (movies.size() > limit) {
-            sb.append("... và ").append(movies.size() - limit).append(" phim khác nữa. Vào trang chủ để xem chi tiết nhé!");
+        if (catalog.getMovies().size() > limit) {
+            sb.append("... và ").append(catalog.getMovies().size() - limit)
+                    .append(" phim khác. Hỏi mình \"phim nào có suất hôm nay\" để xem lịch chiếu cụ thể nhé!");
         } else {
-            sb.append("Chọn phim để xem lịch chiếu và đặt vé nhé!");
+            sb.append("Hỏi mình \"phim nào có suất hôm nay\" hoặc chọn phim để xem lịch chiếu và đặt vé nhé!");
         }
         return sb.toString().trim();
     }

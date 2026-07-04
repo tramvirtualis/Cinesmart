@@ -1,13 +1,17 @@
 package com.example.backend.services;
 
 import com.example.backend.dtos.CinemaComplexResponseDTO;
+import com.example.backend.dtos.FoodComboResponseDTO;
 import com.example.backend.dtos.MovieResponseDTO;
 import com.example.backend.dtos.OrderResponseDTO;
 import com.example.backend.dtos.PriceDTO;
 import com.example.backend.dtos.ShowtimeResponseDTO;
 import com.example.backend.dtos.VoucherResponseDTO;
+import com.example.backend.dtos.n8n.N8nAgentLabels;
 import com.example.backend.dtos.n8n.N8nAppPageDTO;
 import com.example.backend.dtos.n8n.N8nCinemaSummaryDTO;
+import com.example.backend.dtos.n8n.N8nFoodComboSummaryDTO;
+import com.example.backend.dtos.n8n.N8nFoodMenuDTO;
 import com.example.backend.dtos.n8n.N8nMovieDetailDTO;
 import com.example.backend.dtos.n8n.N8nMovieSummaryDTO;
 import com.example.backend.dtos.n8n.N8nOrderSummaryDTO;
@@ -17,7 +21,6 @@ import com.example.backend.dtos.n8n.N8nVoucherSummaryDTO;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
-import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.stream.Collectors;
@@ -25,17 +28,25 @@ import java.util.stream.Collectors;
 @Component
 public class N8nAgentMapper {
 
+    public static final String LIST_TYPE_NOW_SHOWING = "Phim đang chiếu (danh mục rạp)";
+    public static final String LIST_TYPE_WITH_SHOWTIMES = "Phim có suất chiếu (có thể đặt vé)";
+
     @Value("${app.frontend-url:http://localhost:5173}")
     private String frontendUrl;
 
     public N8nMovieSummaryDTO toMovieSummary(MovieResponseDTO movie) {
+        return toMovieSummary(movie, LIST_TYPE_NOW_SHOWING);
+    }
+
+    public N8nMovieSummaryDTO toMovieSummary(MovieResponseDTO movie, String listType) {
         return N8nMovieSummaryDTO.builder()
                 .id(movie.getMovieId())
                 .title(movie.getTitle())
-                .genres(toGenreNames(movie))
+                .genres(N8nAgentLabels.genres(movie.getGenre()))
                 .duration(movie.getDuration())
                 .releaseDate(movie.getReleaseDate())
-                .status(movie.getStatus() != null ? movie.getStatus().name() : null)
+                .status(N8nAgentLabels.movieStatus(movie.getStatus()))
+                .listType(listType)
                 .url(buildMovieUrl(movie.getMovieId()))
                 .build();
     }
@@ -44,11 +55,11 @@ public class N8nAgentMapper {
         return N8nMovieDetailDTO.builder()
                 .id(movie.getMovieId())
                 .title(movie.getTitle())
-                .genres(toGenreNames(movie))
+                .genres(N8nAgentLabels.genres(movie.getGenre()))
                 .duration(movie.getDuration())
                 .releaseDate(movie.getReleaseDate())
-                .status(movie.getStatus() != null ? movie.getStatus().name() : null)
-                .ageRating(movie.getAgeRating() != null ? movie.getAgeRating().name() : null)
+                .status(N8nAgentLabels.movieStatus(movie.getStatus()))
+                .ageRating(N8nAgentLabels.ageRating(movie.getAgeRating()))
                 .director(movie.getDirector())
                 .actor(movie.getActor())
                 .description(movie.getDescription())
@@ -68,6 +79,29 @@ public class N8nAgentMapper {
         return base + path;
     }
 
+    public String buildFoodDrinksUrl() {
+        return buildPageUrl("/food-drinks");
+    }
+
+    public N8nFoodComboSummaryDTO toFoodComboSummary(FoodComboResponseDTO combo) {
+        return N8nFoodComboSummaryDTO.builder()
+                .foodComboId(combo.getFoodComboId())
+                .name(combo.getName())
+                .price(combo.getPrice())
+                .description(combo.getDescription())
+                .build();
+    }
+
+    public N8nFoodMenuDTO toFoodMenu(CinemaComplexResponseDTO cinema, List<FoodComboResponseDTO> combos) {
+        return N8nFoodMenuDTO.builder()
+                .cinemaId(cinema.getComplexId())
+                .cinemaName(cinema.getName())
+                .province(cinema.getAddressProvince())
+                .address(cinema.getFullAddress())
+                .items(combos.stream().map(this::toFoodComboSummary).toList())
+                .build();
+    }
+
     public N8nShowtimeSummaryDTO toShowtimeSummary(ShowtimeResponseDTO showtime) {
         return N8nShowtimeSummaryDTO.builder()
                 .showtimeId(showtime.getShowtimeId())
@@ -76,8 +110,8 @@ public class N8nAgentMapper {
                 .cinemaName(showtime.getCinemaComplexName())
                 .province(showtime.getProvince())
                 .roomName(showtime.getCinemaRoomName())
-                .roomType(showtime.getRoomType() != null ? showtime.getRoomType().name() : null)
-                .startTime(showtime.getStartTime())
+                .roomType(N8nAgentLabels.roomType(showtime.getRoomType()))
+                .showtimeLabel(N8nAgentLabels.formatShowtime(showtime.getStartTime()))
                 .price(showtime.getAdjustedPrice() != null ? showtime.getAdjustedPrice() : showtime.getBasePrice())
                 .build();
     }
@@ -107,23 +141,24 @@ public class N8nAgentMapper {
                 .orderId(order.getOrderId())
                 .orderDate(order.getOrderDate())
                 .totalAmount(order.getTotalAmount())
-                .status(order.getStatus())
-                .paymentMethod(order.getPaymentMethod())
+                .status(translateOrderStatus(order.getStatus()))
+                .paymentMethod(translatePaymentMethod(order.getPaymentMethod()))
                 .movies(movies)
                 .cinema(cinema)
                 .build();
     }
 
     public N8nVoucherSummaryDTO toVoucherSummary(VoucherResponseDTO voucher) {
-        String status = "ACTIVE";
+        String status = "Đang áp dụng";
         if (voucher.getStartDate() != null
                 && java.time.LocalDateTime.now().isBefore(voucher.getStartDate())) {
-            status = "UPCOMING";
+            status = "Sắp diễn ra";
         }
         return N8nVoucherSummaryDTO.builder()
                 .code(voucher.getCode())
                 .name(voucher.getName())
-                .discountType(voucher.getDiscountType() != null ? voucher.getDiscountType().name() : null)
+                .discountType(translateDiscountType(
+                        voucher.getDiscountType() != null ? voucher.getDiscountType().name() : null))
                 .discountValue(voucher.getDiscountValue())
                 .minOrderAmount(voucher.getMinOrderAmount())
                 .status(status)
@@ -161,18 +196,58 @@ public class N8nAgentMapper {
 
     public N8nPriceSummaryDTO toPriceSummary(PriceDTO price) {
         return N8nPriceSummaryDTO.builder()
-                .seatType(price.getSeatType() != null ? price.getSeatType().name() : null)
-                .roomType(price.getRoomType() != null ? price.getRoomType().name() : null)
+                .seatType(translateSeatType(price.getSeatType() != null ? price.getSeatType().name() : null))
+                .roomType(N8nAgentLabels.roomType(price.getRoomType()))
                 .price(price.getPrice())
                 .build();
     }
 
-    private List<String> toGenreNames(MovieResponseDTO movie) {
-        if (movie.getGenre() == null) {
-            return Collections.emptyList();
+    private String translateOrderStatus(String status) {
+        if (status == null) {
+            return null;
         }
-        return movie.getGenre().stream()
-                .map(Enum::name)
-                .collect(Collectors.toList());
+        return switch (status.toUpperCase()) {
+            case "PENDING" -> "Chờ thanh toán";
+            case "PAID", "COMPLETED" -> "Đã thanh toán";
+            case "CANCELLED", "CANCELED" -> "Đã hủy";
+            case "REFUNDED" -> "Đã hoàn tiền";
+            default -> status;
+        };
+    }
+
+    private String translatePaymentMethod(String method) {
+        if (method == null) {
+            return null;
+        }
+        return switch (method.toUpperCase()) {
+            case "WALLET" -> "Ví Cinesmart";
+            case "MOMO" -> "MoMo";
+            case "VNPAY" -> "VNPay";
+            case "CASH" -> "Tiền mặt";
+            default -> method;
+        };
+    }
+
+    private String translateDiscountType(String type) {
+        if (type == null) {
+            return null;
+        }
+        return switch (type.toUpperCase()) {
+            case "PERCENTAGE" -> "Giảm theo phần trăm";
+            case "FIXED" -> "Giảm cố định";
+            default -> type;
+        };
+    }
+
+    private String translateSeatType(String seatType) {
+        if (seatType == null) {
+            return null;
+        }
+        return switch (seatType.toUpperCase()) {
+            case "STANDARD" -> "Ghế thường";
+            case "VIP" -> "Ghế VIP";
+            case "COUPLE" -> "Ghế đôi";
+            default -> seatType;
+        };
     }
 }

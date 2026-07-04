@@ -1,5 +1,6 @@
 package com.example.backend.dtos.n8n;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -14,7 +15,9 @@ import java.util.List;
 @AllArgsConstructor
 @Builder
 public class N8nOrderSummaryDTO {
+    @JsonIgnore
     private Long orderId;
+
     private LocalDateTime orderDate;
     private BigDecimal totalAmount;
     private String status;

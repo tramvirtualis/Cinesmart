@@ -322,6 +322,41 @@ public class MovieService {
                 .map(this::convertToDTO)
                 .collect(Collectors.toList());
     }
+
+    public List<MovieResponseDTO> findMoviesByTitleKeyword(String keyword) {
+        if (keyword == null || keyword.isBlank()) {
+            return List.of();
+        }
+        return movieRepository.findByTitleContainingIgnoreCase(keyword.trim()).stream()
+                .map(this::convertToDTO)
+                .collect(Collectors.toList());
+    }
+
+    public MovieResponseDTO resolveMovieForAgent(String movieTitle, String url, Long movieId) {
+        if (movieId != null) {
+            return getMovieById(movieId);
+        }
+        if (url != null && !url.isBlank()) {
+            java.util.regex.Matcher matcher = java.util.regex.Pattern
+                    .compile("/movie/(\\d+)")
+                    .matcher(url);
+            if (matcher.find()) {
+                return getMovieById(Long.parseLong(matcher.group(1)));
+            }
+        }
+        if (movieTitle == null || movieTitle.isBlank()) {
+            throw new IllegalArgumentException("Cần movieTitle hoặc url để tra cứu phim");
+        }
+        List<MovieResponseDTO> matches = findMoviesByTitleKeyword(movieTitle.trim());
+        if (matches.isEmpty()) {
+            throw new IllegalArgumentException("Không tìm thấy phim: " + movieTitle);
+        }
+        String normalized = movieTitle.trim();
+        return matches.stream()
+                .filter(movie -> movie.getTitle().equalsIgnoreCase(normalized))
+                .findFirst()
+                .orElse(matches.get(0));
+    }
     
     
     /**

@@ -18,10 +18,8 @@ public class N8nVoucherSummaryDTO {
     private String discountType;
     private BigDecimal discountValue;
     private BigDecimal minOrderAmount;
-    /** ACTIVE hoặc UPCOMING — API không trả voucher EXPIRED */
     private String status;
     private LocalDateTime startDate;
     private LocalDateTime endDate;
-    /** Trang xem/khám phá voucher trên frontend */
     private String url;
 }
