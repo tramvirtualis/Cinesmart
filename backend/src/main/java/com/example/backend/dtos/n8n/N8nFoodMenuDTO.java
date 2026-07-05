@@ -5,14 +5,16 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.util.List;
+
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class N8nCinemaSummaryDTO {
-    private Long id;
-
-    private String name;
+public class N8nFoodMenuDTO {
+    private Long cinemaId;
+    private String cinemaName;
     private String province;
     private String address;
+    private List<N8nFoodComboSummaryDTO> items;
 }

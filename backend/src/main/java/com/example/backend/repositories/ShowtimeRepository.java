@@ -1,5 +1,6 @@
 package com.example.backend.repositories;
 
+import com.example.backend.entities.Movie;
 import com.example.backend.entities.Showtime;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -127,5 +128,23 @@ public interface ShowtimeRepository extends JpaRepository<Showtime, Long> {
     List<Showtime> findByCinemaRoom_RoomIdAndDate(@Param("roomId") Long roomId, 
                                                    @Param("startOfDay") java.time.LocalDateTime startOfDay,
                                                    @Param("endOfDay") java.time.LocalDateTime endOfDay);
+
+    @Query("""
+        SELECT DISTINCT m FROM Showtime s
+        INNER JOIN s.movieVersion mv
+        INNER JOIN mv.movie m
+        INNER JOIN s.cinemaRoom cr
+        INNER JOIN cr.cinemaComplex cc
+        INNER JOIN cc.address a
+        WHERE mv.roomType = cr.roomType
+        AND s.startTime >= :startOfDay
+        AND s.startTime < :endOfDay
+        AND s.startTime >= CURRENT_TIMESTAMP
+        AND (:province IS NULL OR :province = '' OR LOWER(a.province) LIKE LOWER(CONCAT('%', :province, '%')))
+        ORDER BY m.title ASC
+        """)
+    List<Movie> findMoviesWithPublicShowtimesOnDate(@Param("startOfDay") LocalDateTime startOfDay,
+                                                    @Param("endOfDay") LocalDateTime endOfDay,
+                                                    @Param("province") String province);
 }
 

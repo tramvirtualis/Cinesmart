@@ -61,9 +61,54 @@ public class N8nController {
 
             return ResponseEntity.ok(n8nService.getMoviesForAgent(status));
 
-        } catch (IllegalArgumentException e) {
-
+        } catch (Exception e) {
             return badRequest(e.getMessage());
+        }
+
+    }
+
+
+
+    @GetMapping("/movies-with-showtimes")
+
+    public ResponseEntity<?> getMoviesWithShowtimes(
+
+            @RequestParam(required = false) String date,
+
+            @RequestParam(required = false) String province) {
+
+        try {
+
+            return ResponseEntity.ok(n8nService.getMoviesWithShowtimesForAgent(date, province));
+
+        } catch (Exception e) {
+            return badRequest(e.getMessage());
+        }
+
+    }
+
+
+
+    @GetMapping("/movies/detail")
+    public ResponseEntity<?> getMovieDetail(@RequestParam(required = false) String movieId, @RequestParam(required = false) String movieTitle) {
+        try {
+            Long parsedMovieId = null;
+            if (movieId != null && !movieId.isBlank()) {
+                String cleanMovieId = movieId.trim();
+                if (cleanMovieId.startsWith("=")) {
+                    cleanMovieId = cleanMovieId.substring(1).trim();
+                }
+                try {
+                    parsedMovieId = Long.parseLong(cleanMovieId);
+                } catch (NumberFormatException e) {
+                    // Nếu n8n gửi sai (vd gửi [object Object] hoặc chữ), ta coi như null và dựa vào movieTitle
+                    parsedMovieId = null;
+                }
+            }
+            return ResponseEntity.ok(n8nService.getMovieDetailForAgent(parsedMovieId, movieTitle));
+        } catch (Exception e) {
+
+            return notFound(e.getMessage());
 
         }
 
@@ -73,12 +118,13 @@ public class N8nController {
 
     @GetMapping("/movies/{movieId}")
 
-    public ResponseEntity<?> getMovieById(@PathVariable Long movieId) {
+    public ResponseEntity<?> getMovieById(@PathVariable String movieId) {
 
         try {
-
-            return ResponseEntity.ok(n8nService.getMovieDetailForAgent(movieId));
-
+            Long parsedMovieId = Long.parseLong(movieId);
+            return ResponseEntity.ok(n8nService.getMovieDetailForAgent(parsedMovieId, null));
+        } catch (NumberFormatException e) {
+            return notFound("movieId phải là số hợp lệ, nhận được: " + movieId);
         } catch (Exception e) {
 
             return notFound(e.getMessage());
@@ -90,25 +136,28 @@ public class N8nController {
 
 
     @GetMapping("/showtimes")
-
     public ResponseEntity<?> getShowtimes(
-
-            @RequestParam Long movieId,
-
+            @RequestParam(required = false) String movieId,
+            @RequestParam(required = false) String movieTitle,
             @RequestParam String date,
-
             @RequestParam(required = false) String province) {
-
         try {
-
-            return ResponseEntity.ok(n8nService.getShowtimesForAgent(movieId, province, date));
-
-        } catch (IllegalArgumentException e) {
-
+            Long parsedMovieId = null;
+            if (movieId != null && !movieId.isBlank()) {
+                String cleanMovieId = movieId.trim();
+                if (cleanMovieId.startsWith("=")) {
+                    cleanMovieId = cleanMovieId.substring(1).trim();
+                }
+                try {
+                    parsedMovieId = Long.parseLong(cleanMovieId);
+                } catch (NumberFormatException e) {
+                    parsedMovieId = null;
+                }
+            }
+            return ResponseEntity.ok(n8nService.getShowtimesForAgent(parsedMovieId, movieTitle, province, date));
+        } catch (Exception e) {
             return badRequest(e.getMessage());
-
         }
-
     }
 
 
@@ -167,6 +216,20 @@ public class N8nController {
 
         return ResponseEntity.ok(n8nService.getPricesForAgent());
 
+    }
+
+
+
+    @GetMapping("/food-combos")
+    public ResponseEntity<?> getFoodCombos(
+            @RequestParam(required = false) Long cinemaId,
+            @RequestParam(required = false) String cinemaName,
+            @RequestParam(required = false) String province) {
+        try {
+            return ResponseEntity.ok(n8nService.getFoodCombosForAgent(cinemaId, cinemaName, province));
+        } catch (IllegalArgumentException e) {
+            return badRequest(e.getMessage());
+        }
     }
 
 

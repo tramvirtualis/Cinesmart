@@ -4,6 +4,7 @@ import java.util.List;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import com.example.backend.entities.Movie;
@@ -31,4 +32,7 @@ public interface MovieRepository extends JpaRepository<Movie, Long> {
            "AND NOT EXISTS (SELECT 1 FROM MovieVersion mv WHERE mv.movie = m AND EXISTS (SELECT 1 FROM Showtime s WHERE s.movieVersion = mv)) " +
            "ORDER BY m.releaseDate ASC")
     List<Movie> findComingSoonMovies();
+
+    @Query("SELECT m FROM Movie m WHERE LOWER(m.title) LIKE LOWER(CONCAT('%', :keyword, '%')) ORDER BY m.title ASC")
+    List<Movie> findByTitleContainingIgnoreCase(@Param("keyword") String keyword);
 }

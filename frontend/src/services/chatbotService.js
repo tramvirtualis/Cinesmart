@@ -51,7 +51,43 @@ function isValidReply(text) {
   if (trimmed.length < 2) {
     return false;
   }
-  return !INVALID_REPLY_VALUES.has(trimmed);
+  if (INVALID_REPLY_VALUES.has(trimmed)) {
+    return false;
+  }
+  if (looksLikeStructuredBotJson(trimmed)) {
+    return false;
+  }
+  return true;
+}
+
+function looksLikeStructuredBotJson(text) {
+  const trimmed = String(text || '').trim();
+  return trimmed.startsWith('{') && /"reply"\s*:/.test(trimmed);
+}
+
+function tryParseStructuredBotJson(text) {
+  if (typeof text !== 'string') {
+    return null;
+  }
+  const trimmed = text.trim();
+  if (!trimmed.startsWith('{')) {
+    return null;
+  }
+  try {
+    const parsed = JSON.parse(trimmed);
+    return parsed && typeof parsed === 'object' ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+function unwrapStructuredReplyText(text) {
+  const trimmed = String(text || '').trim();
+  const parsed = tryParseStructuredBotJson(trimmed);
+  if (parsed?.reply != null) {
+    return String(parsed.reply).trim();
+  }
+  return trimmed;
 }
 
 function findLongestText(value, depth = 0) {
@@ -119,9 +155,21 @@ export function extractN8nReply(data) {
   }
 
   if (typeof data === 'object') {
-    // Respond to Webhook của bạn cấu hình key "reply"
     for (const key of ['reply', 'output', 'text', 'message', 'response', 'response_ai_agent']) {
-      const value = normalizeReplyText(data[key]);
+      const rawValue = data[key];
+      if (rawValue == null) {
+        continue;
+      }
+
+      const structured = typeof rawValue === 'string' ? tryParseStructuredBotJson(rawValue) : null;
+      if (structured) {
+        const nestedReply = extractN8nReply(structured);
+        if (isValidReply(nestedReply)) {
+          return nestedReply;
+        }
+      }
+
+      const value = unwrapStructuredReplyText(normalizeReplyText(rawValue));
       if (isValidReply(value)) {
         return value;
       }
@@ -186,6 +234,21 @@ function extractN8nMeta(data, depth = 0) {
         target_url: targetUrlRaw != null ? String(targetUrlRaw).trim() : null,
       };
     }
+
+    for (const key of ['reply', 'output', 'response_ai_agent', 'text', 'message', 'response']) {
+      const structured = tryParseStructuredBotJson(data[key]);
+      if (structured?.action || structured?.target_url || structured?.targetUrl) {
+        return {
+          action: structured.action
+            ? String(structured.action).trim().toUpperCase()
+            : null,
+          target_url: structured.target_url ?? structured.targetUrl
+            ? String(structured.target_url ?? structured.targetUrl).trim()
+            : null,
+        };
+      }
+    }
+
     for (const key of ['json', 'data', 'body']) {
       if (data[key] && typeof data[key] === 'object') {
         const nested = extractN8nMeta(data[key], depth + 1);
@@ -420,6 +483,10 @@ const NAV_INTENT_RULES = [
 
 const EXPLICIT_USER_NAV_PATTERNS = [
   /\bmở\s+(?:trang|link|giúp|cho)\b/i,
+  /\bm[oở]\s+phim\b/i,
+  /\bvào\s+phim\b/i,
+  /\bxem\s+phim\b/i,
+  /\bcho\s+(?:tôi|mình|bạn)\s+xem\b/i,
   /\bvào\s+(?:trang|link)\b/i,
   /\bchuyển\s+(?:tôi|mình|bạn)?\s*(?:tới|đến|sang|qua)\b/i,
   /\bđưa\s+(?:tôi|mình)\s*(?:tới|đến|sang)\b/i,
@@ -429,6 +496,10 @@ const EXPLICIT_USER_NAV_PATTERNS = [
   /\bopen\b/i,
   // Không dấu / giọng nói
   /\bmo\s+(?:trang|link|giup|cho)\b/i,
+  /\bmo\s+phim\b/i,
+  /\bvao\s+phim\b/i,
+  /\bxem\s+phim\b/i,
+  /\bcho\s+(?:toi|minh|ban)\s+xem\b/i,
   /\bvao\s+(?:trang|link)\b/i,
   /\bchuyen\s+(?:toi|minh|ban)?\s*(?:toi|den|sang|qua)\b/i,
   /\bdua\s+(?:toi|minh)\s*(?:toi|den|sang)\b/i,
@@ -456,7 +527,13 @@ export function userExplicitlyRequestedNavigation(userMessage, { fromVoice = fal
   }
 
   if (fromVoice) {
-    if (/\b(mo|vao|open)\b/.test(normalized) && /\b(trang|link|page)\b/.test(normalized)) {
+    if (
+      /\b(mo|vao|open|xem)\b/.test(normalized)
+      && /\b(trang|link|page|phim)\b/.test(normalized)
+    ) {
+      return true;
+    }
+    if (/\b(mo|vao)\s+phim\b/.test(normalized)) {
       return true;
     }
     if (/^(co|duoc|ok|oke|mo di|lam di|u|yes)$/.test(normalized)) {
@@ -468,7 +545,7 @@ export function userExplicitlyRequestedNavigation(userMessage, { fromVoice = fal
     /(?:không|khong|gì|gi|nào|nao|bao nhiêu|bao nhieu|khi nào|khi nao)\s*\??$/i.test(text)
     && !matchesAnyPattern(text, EXPLICIT_USER_NAV_PATTERNS);
 
-  if (isInfoQuestion && !matchesPattern(text, /\bm[oở]\s+trang\b/i)) {
+  if (isInfoQuestion) {
     return false;
   }
 
@@ -512,6 +589,18 @@ export function inferNavPathFromText(text) {
   return null;
 }
 
+function normalizeMovieTitleHint(raw) {
+  if (!raw) {
+    return null;
+  }
+  let hint = raw.replace(/^['"]|['"]$/g, '').trim();
+  const colonIdx = hint.indexOf(':');
+  if (colonIdx > 0) {
+    hint = hint.slice(0, colonIdx).trim();
+  }
+  return hint || null;
+}
+
 function extractMovieTitleHint(text) {
   if (!text) {
     return null;
@@ -519,17 +608,21 @@ function extractMovieTitleHint(text) {
 
   const quoted = text.match(/['"]([^'"]{2,120})['"]/);
   if (quoted) {
-    return quoted[1].trim();
+    return normalizeMovieTitleHint(quoted[1]);
   }
 
-  const opened = text.match(/trang phim\s+(.+?)(?:\s+cho bạn|\s+cho ban|\s+rồi|\s+roi|\s+nhé|\s+nhe|\.|$)/i);
+  const opened = text.match(
+    /trang phim\s+(.+?)(?:\s+cho bạn|\s+cho ban|\s+rồi|\s+roi|\s+nhé|\s+nhe|\s+đi|\s+di|\.|$)/i,
+  );
   if (opened) {
-    return opened[1].replace(/^['"]|['"]$/g, '').trim();
+    return normalizeMovieTitleHint(opened[1]);
   }
 
-  const named = text.match(/(?:mở|mo|vào|vao|xem)\s+(?:trang\s+)?phim\s+(.+?)(?:\s+cho|\s+nhé|\s+nhe|\.|$)/i);
+  const named = text.match(
+    /(?:mở|mo|vào|vao|xem)\s+(?:trang\s+)?phim\s+(.+?)(?:\s+cho|\s+nhé|\s+nhe|\s+đi|\s+di|\.|$)/i,
+  );
   if (named) {
-    return named[1].trim();
+    return normalizeMovieTitleHint(named[1]);
   }
 
   return null;
@@ -605,6 +698,22 @@ export async function resolveChatRedirect({
   const fromLink = extractSingleAppLinkFromText(reply);
   if (fromLink && !isSameAppPath(fromLink, currentPath)) {
     return fromLink;
+  }
+
+  const wantsMoviePage = matchesAnyPattern(userMessage, [
+    /\bm[oở]\s+phim\b/i,
+    /\bvào\s+phim\b/i,
+    /\bxem\s+phim\b/i,
+    /\bmo\s+phim\b/i,
+    /\bvao\s+phim\b/i,
+    /trang phim/i,
+  ]);
+
+  if (wantsMoviePage) {
+    const moviePath = await inferMoviePathFromTexts([userMessage, reply]);
+    if (moviePath && !isSameAppPath(moviePath, currentPath)) {
+      return moviePath;
+    }
   }
 
   const fromUser = inferNavPathFromText(userMessage);
@@ -742,21 +851,33 @@ export async function sendChatMessage(chatMessage) {
   }
 
   const meta = extractN8nMeta(rawPayload);
-  const reply = extractN8nReply(rawPayload) || normalizeReplyText(rawPayload?.reply);
+  let reply = extractN8nReply(rawPayload) || unwrapStructuredReplyText(normalizeReplyText(rawPayload?.reply));
+
+  const structuredInReply = tryParseStructuredBotJson(rawPayload?.reply);
+  const action = meta.action
+    ?? (structuredInReply?.action ? String(structuredInReply.action).trim().toUpperCase() : null)
+    ?? rawPayload?.action
+    ?? null;
+  const target_url = meta.target_url
+    ?? structuredInReply?.target_url
+    ?? structuredInReply?.targetUrl
+    ?? rawPayload?.target_url
+    ?? null;
+
   if (!isValidReply(reply)) {
     console.warn('[Popcorn Bot] reply/output rỗng. Raw:', rawPayload);
     return {
       reply: '',
-      action: meta.action,
-      target_url: meta.target_url,
+      action,
+      target_url,
       source: rawPayload?.source || 'empty',
     };
   }
 
   return {
     reply,
-    action: meta.action ?? rawPayload?.action ?? null,
-    target_url: meta.target_url ?? rawPayload?.target_url ?? null,
+    action,
+    target_url,
     source: rawPayload?.source || 'backend',
   };
 }

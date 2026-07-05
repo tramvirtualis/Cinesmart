@@ -80,41 +80,45 @@ Mình mở trang Godzilla Minus One cho bạn nhé: http://localhost:5173/movie/
 
 ```
 Bạn là Popcorn Bot — trợ lý rạp Cinesmart. Trả lời tiếng Việt, ngắn gọn, thân thiện.
-API trả về JSON trực tiếp (mảng hoặc object), không có field "data".
+API trả JSON field tiếng Anh; giá trị status/genres là tiếng Việt. Response có id để gọi tool tiếp theo.
 
-- Danh sách phim → get_movies (status: NOW_SHOWING / COMING_SOON / để trống = tất cả)
-- Chi tiết phim → get_movie_detail (movieId)
-- Suất chiếu → get_showtimes (movieId + date yyyy-MM-dd, province tuỳ chọn)
-- Rạp → get_cinema_complexes
-- Khuyến mãi → get_vouchers (API đã lọc voucher hết hạn; chỉ liệt kê voucher API trả về)
-- Giá vé → get_prices
-- Lịch sử đặt → get_user_orders (chỉ khi userId là số, không phải guest)
-- Link trang web → get_app_pages (lịch sử đặt vé, thư viện, đồ ăn, voucher...)
+QUAN TRỌNG — PHÂN BIỆT 2 LOẠI PHIM:
+1. **Phim đang chiếu (danh mục)** → get_movies (status: NOW_SHOWING hoặc COMING_SOON)
+   - Phim có trong hệ thống rạp, có thể CHƯA có suất vào ngày/thành phố cụ thể.
+   - Dùng khi: "phim gì đang chiếu", "có phim gì", "gợi ý phim", "phim hay".
+2. **Phim đang CÓ SUẤT CHIẾU (đặt vé được)** → get_movies_with_showtimes (date + province tuỳ chọn)
+   - Chỉ phim còn suất trong tương lai vào ngày đã chọn.
+   - Dùng khi: "phim gì chiếu hôm nay", "có suất nào", "đặt vé phim gì", "ở HCM chiếu gì".
+   - Khách không nói ngày → để trống date (API dùng hôm nay).
+   - Khách nói thành phố → truyền province.
+
+CÔNG CỤ:
+- Danh mục phim → get_movies
+- Phim có suất theo ngày/địa phương → get_movies_with_showtimes
+- Chi tiết phim → get_movie_detail (movieId từ get_movies)
+- Suất chiếu một phim → get_showtimes (movieId + date, province tuỳ chọn)
+- Rạp → get_cinema_complexes | Đồ ăn/nước uống → get_food_combos (cinemaId từ get_cinema_complexes, hoặc province)
+- Khuyến mãi → get_vouchers | Giá vé → get_prices
+- Lịch sử đặt → get_user_orders (chỉ khi userId là số) | Link trang → get_app_pages
 
 Chỉ dùng dữ liệu từ tool. Không bịa thông tin.
 
-LINK TRANG WEB (bắt buộc — dùng field `url` từ API hoặc get_app_pages):
-- Phim: field `url` từ get_movies / get_movie_detail (VD: http://localhost:5173/movie/16)
-- Lịch chiếu: http://localhost:5173/schedule
-- Lịch sử đặt vé: http://localhost:5173/booking-history
-- Đơn hàng: http://localhost:5173/orders
-- Thư viện phim: http://localhost:5173/library
-- Đồ ăn nước uống: http://localhost:5173/food-drinks
-- Voucher / khuyến mãi: http://localhost:5173/events
-- Voucher đã lưu: http://localhost:5173/profile?tab=vouchers
-- KHÔNG dùng cinesmart.vn. Route phim là /movie/{id} (không phải /movies/{id}).
+CÁCH TRẢ LỜI (bắt buộc — tránh lộ jargon):
+- Dùng id/movieId/cinemaId CHỈ khi gọi tool nội bộ. KHÔNG BAO GIỜ nói số id với khách.
+- KHÔNG nói: movieId, showtimeId, cinemaId, NOW_SHOWING, COMING_SOON, ACTION, tên field JSON, tên tool.
+- Nói tự nhiên: "tên phim", "giờ chiếu", "rạp", "đang chiếu" — KHÔNG đọc nguyên key API.
+- Liệt kê phim bằng bullet (•) hoặc số, KHÔNG dồn hết vào 1 đoạn dài.
+- Đọc field description trong response để biết loại danh sách trước khi trả lời.
 
-TỰ CHUYỂN TRANG (frontend):
-- Frontend **chỉ** redirect khi user **chủ động** yêu cầu: "mở trang...", "vào trang...", "có", "ok", "mở đi".
-- Câu hỏi thông tin (VD: "sắp tới có anime nào?", "phim gì hay?") → **KHÔNG** tự chuyển trang dù bot gợi ý phim.
-- Bot hỏi "bạn muốn mình mở trang không?" → chờ user trả lời "có"/"ok"/"mở đi" rồi mới chuyển.
-- Khi user đã yêu cầu mở: ghi **1 link** trong câu trả lời (hoặc n8n action REDIRECT) — frontend redirect sau ~1.75 giây.
-Liệt kê nhiều lựa chọn → ghi nhiều link (frontend không tự chuyển).
+LINK: dùng field url từ API hoặc get_app_pages. Route phim: /movie/{id}. KHÔNG dùng cinesmart.vn.
 
-VOUCHER (bắt buộc):
-- get_vouchers chỉ trả voucher còn hiệu lực (ACTIVE/UPCOMING), không có voucher hết hạn.
-- Nếu API trả mảng rỗng [] → nói "hiện chưa có voucher/khuyến mãi nào", KHÔNG bịa mã giảm giá.
-- Chỉ liệt kê đúng các voucher trong JSON (code, name, discount...). Không thêm mã không có trong API.
+TỰ CHUYỂN TRANG: chỉ khi user chủ động "mở trang...", "mở phim...", "có", "ok", "mở đi".
+
+VOUCHER: mảng rỗng → nói chưa có khuyến mãi, không bịa mã.
+
+ĐỒ ĂN/NƯỚC UỐNG:
+- Gọi get_cinema_complexes lấy id rạp → get_food_combos(cinemaId=...).
+- Hoặc get_food_combos(province=...) để xem menu theo thành phố.
 ```
 
 ---
@@ -139,30 +143,66 @@ VOUCHER (bắt buộc):
 **Description (mô tả tool):**
 
 ```
-Lấy danh sách phim Cinesmart.
-- status=NOW_SHOWING: phim đang chiếu
+Lấy DANH MỤC phim Cinesmart (KHÔNG phải phim có suất cụ thể).
+- status=NOW_SHOWING: phim đang chiếu trong hệ thống (có thể chưa có suất hôm nay)
 - status=COMING_SOON: phim sắp chiếu
-- status trống hoặc ALL: tất cả phim
-Trả về mảng JSON: id, title, genres, duration, releaseDate, status.
-Dùng khi khách hỏi phim đang chiếu, sắp chiếu, gợi ý phim, xem gì hôm nay.
+- status trống: tất cả phim
+Trả về object: listType, description, movies[] (id, title, genres, status, url...).
+Giá trị status/genres là tiếng Việt. Dùng id khi gọi get_movie_detail / get_showtimes.
+Dùng khi: "phim đang chiếu", "gợi ý phim", "có phim gì".
+KHÔNG dùng khi khách hỏi suất hôm nay / đặt vé / phim chiếu ở HCM → dùng get_movies_with_showtimes.
 ```
 
 **Response mẫu:**
 
 ```json
-[
-  {
-    "id": 1,
-    "title": "Avengers",
-    "genres": ["ACTION", "SCIFI"],
-    "duration": 120,
-    "releaseDate": "2026-01-15",
-    "status": "NOW_SHOWING"
-  }
-]
+{
+  "listType": "Phim đang chiếu (danh mục rạp)",
+  "description": "Phim đang chiếu trong danh mục...",
+  "movies": [
+    {
+      "id": 1,
+      "title": "Inception",
+      "genres": ["Khoa học viễn tưởng", "Hành động"],
+      "duration": 120,
+      "status": "Đang chiếu",
+      "url": "http://localhost:5173/movie/1"
+    }
+  ]
+}
 ```
 
 **Test URL cố định:** `http://localhost:8080/api/n8n/movies?status=NOW_SHOWING`
+
+---
+
+## Tool 1b: get_movies_with_showtimes
+
+| Field | Giá trị |
+|-------|---------|
+| **Tool Name** | `get_movies_with_showtimes` |
+| **Method** | GET |
+| **URL** | `http://localhost:8080/api/n8n/movies-with-showtimes` |
+| **Authentication** | Header Auth (`X-API-Key`) |
+| **Send Query Parameters** | ON |
+
+**Query Parameters:**
+
+| Name | Value (Expression) |
+|------|---------------------|
+| date | `={{ $fromAI('date', 'Ngày yyyy-MM-dd, mặc định hôm nay', 'string', { optional: true }) }}` |
+| province | `={{ $fromAI('province', 'Tỉnh/thành phố (tuỳ chọn)', 'string', { optional: true }) }}` |
+
+**Description:**
+
+```
+Lấy phim ĐANG CÓ SUẤT CHIẾU còn vé (có thể đặt) theo ngày và địa phương.
+Trả về: listType, description, date, province, movies[].
+Dùng khi: "phim gì chiếu hôm nay", "ở HCM có suất gì", "đặt vé phim nào".
+Nếu khách không nói ngày → để trống date (API dùng hôm nay).
+```
+
+**Test URL:** `http://localhost:8080/api/n8n/movies-with-showtimes?date=2026-06-10&province=Hồ Chí Minh`
 
 ---
 
@@ -172,20 +212,26 @@ Dùng khi khách hỏi phim đang chiếu, sắp chiếu, gợi ý phim, xem gì
 |-------|---------|
 | **Tool Name** | `get_movie_detail` |
 | **Method** | GET |
-| **URL** | `http://localhost:8080/api/n8n/movies/{{ $fromAI('movieId', 'ID phim (số)', 'number') }}` |
+| **URL** | `http://localhost:8080/api/n8n/movies/detail` |
 | **Authentication** | Header Auth (`X-API-Key`) |
-| **Send Query Parameters** | OFF |
+| **Send Query Parameters** | ON |
+
+**Query Parameters:**
+
+| Name | Value (Expression) |
+|------|---------------------|
+| movieId | `={{ $fromAI('movieId', 'ID phim (số) từ get_movies', 'number', { optional: true }) }}` |
+| movieTitle | `={{ $fromAI('movieTitle', 'Tên phim cần tìm', 'string', { optional: true }) }}` |
 
 **Description:**
 
 ```
-Lấy chi tiết một phim theo movieId.
-Trả về: id, title, genres, duration, releaseDate, status, ageRating, director, actor, description.
-Dùng khi khách hỏi nội dung phim, diễn viên, đạo diễn, mô tả phim X.
-Cần movieId từ get_movies trước.
+Lấy chi tiết một phim. Có thể truyền movieId (số) HOẶC movieTitle (chữ).
+Trả về: id, title, genres, description, director, actor, ageRating, url...
+Ưu tiên truyền movieTitle trực tiếp từ câu hỏi của khách (VD: "Trốn Chạy Tử Thần").
 ```
 
-**Test URL:** `http://localhost:8080/api/n8n/movies/1`
+**Test URL:** `http://localhost:8080/api/n8n/movies/detail?movieId=1`
 
 ---
 
@@ -203,17 +249,18 @@ Cần movieId từ get_movies trước.
 
 | Name | Value (Expression) |
 |------|---------------------|
-| movieId | `={{ $fromAI('movieId', 'ID phim', 'number') }}` |
+| movieId | `={{ $fromAI('movieId', 'ID phim từ get_movies', 'number', { optional: true }) }}` |
+| movieTitle | `={{ $fromAI('movieTitle', 'Tên phim cần tra cứu', 'string', { optional: true }) }}` |
 | date | `={{ $fromAI('date', 'Ngày yyyy-MM-dd', 'string') }}` |
 | province | `={{ $fromAI('province', 'Tỉnh thành (tuỳ chọn)', 'string', { optional: true }) }}` |
 
 **Description:**
 
 ```
-Tra cứu lịch/suất chiếu của một phim theo ngày.
-Bắt buộc: movieId, date (yyyy-MM-dd). Tuỳ chọn: province.
-Nếu khách không nói ngày, dùng ngày hôm nay.
-Dùng khi hỏi suất chiếu, mấy giờ chiếu, lịch hôm nay/ngày mai.
+Tra cứu suất chiếu của một phim theo ngày.
+Bắt buộc: date (yyyy-MM-dd) và một trong hai (movieId HOẶC movieTitle). Tuỳ chọn: province.
+Ưu tiên truyền thẳng movieTitle nếu khách gọi tên phim rõ ràng.
+Trả về: movieTitle, date, description, showtimes[] (showtimeLabel, cinemaName, roomType, price...).
 ```
 
 **Test URL:** `http://localhost:8080/api/n8n/showtimes?movieId=1&date=2026-06-10&province=Hồ Chí Minh`
@@ -233,7 +280,7 @@ Dùng khi hỏi suất chiếu, mấy giờ chiếu, lịch hôm nay/ngày mai.
 
 ```
 Lấy danh sách rạp Cinesmart: id, name, province, address.
-Dùng khi khách hỏi rạp ở đâu, có rạp nào, địa chỉ rạp.
+Dùng id rạp cho get_food_combos(cinemaId).
 ```
 
 **Test URL:** `http://localhost:8080/api/n8n/cinema-complexes`
@@ -253,10 +300,8 @@ Dùng khi khách hỏi rạp ở đâu, có rạp nào, địa chỉ rạp.
 
 ```
 Lấy voucher/khuyến mãi công khai CÒN HIỆU LỰC (đã lọc hết hạn ở backend).
-Trả về: code, name, discountType, discountValue, minOrderAmount, status (ACTIVE/UPCOMING), startDate, endDate, url.
-Nếu mảng rỗng → báo khách hiện không có voucher, không bịa thêm mã.
-Chỉ liệt kê voucher có trong response. Không liệt kê voucher EXPIRED.
-Dùng khi khách hỏi giảm giá, mã giảm, khuyến mãi, voucher.
+Trả về: code, name, discountType, discountValue, minOrderAmount, status, startDate, endDate, url.
+Giá trị status/discountType là tiếng Việt. Mảng rỗng → báo chưa có khuyến mãi, không bịa mã.
 ```
 
 **Test URL:** `http://localhost:8080/api/n8n/vouchers`
@@ -299,10 +344,8 @@ Dùng khi khách hỏi giá vé, vé bao nhiêu, giá ghế VIP.
 
 ```
 Lấy lịch sử đặt vé của khách đang chat.
-Trả về: orderId, orderDate, totalAmount, status, paymentMethod, movies, cinema.
-Chỉ gọi khi userId là số (đã đăng nhập).
-Không gọi nếu userId bắt đầu bằng "guest-" — nhắc khách đăng nhập.
-Dùng khi hỏi đơn của tôi, vé đã mua, lịch sử đặt.
+Trả về: orderDate, totalAmount, status, paymentMethod, movies, cinema (không có orderId).
+Giá trị status/paymentMethod là tiếng Việt. Chỉ gọi khi userId là số (đã đăng nhập).
 ```
 
 **Test URL:** `http://localhost:8080/api/n8n/users/1/orders`
@@ -338,6 +381,61 @@ Ghi đúng 1 url vào câu trả lời để frontend tự chuyển trang.
   { "key": "events", "label": "Sự kiện & khuyến mãi (voucher)", "path": "/events", "url": "http://localhost:5173/events" }
 ]
 ```
+
+---
+
+## Tool 9: get_food_combos
+
+| Field | Giá trị |
+|-------|---------|
+| **Tool Name** | `get_food_combos` |
+| **Method** | GET |
+| **URL** | `http://localhost:8080/api/n8n/food-combos` |
+| **Authentication** | Header Auth (`X-API-Key`) |
+| **Send Query Parameters** | ON |
+
+**Query Parameters:**
+
+| Name | Value (Expression) |
+|------|---------------------|
+| cinemaId | `={{ $fromAI('cinemaId', 'ID rạp từ get_cinema_complexes', 'number', { optional: true }) }}` |
+| province | `={{ $fromAI('province', 'Tỉnh/thành phố (tuỳ chọn)', 'string', { optional: true }) }}` |
+
+**Description:**
+
+```
+Lấy menu đồ ăn/nước uống theo rạp.
+- cinemaId: menu một rạp (lấy id từ get_cinema_complexes)
+- province: menu tất cả rạp trong thành phố
+- Cả hai để trống: gọi get_cinema_complexes trước để lấy cinemaId
+Trả về: description, url, menus[] (cinemaId, cinemaName, province, items[]).
+```
+
+**Response mẫu:**
+
+```json
+{
+  "description": "Menu đồ ăn/nước uống tại rạp CGV Vincom...",
+  "url": "http://localhost:5173/food-drinks",
+  "menus": [
+    {
+      "cinemaId": 1,
+      "cinemaName": "CGV Vincom Center",
+      "province": "Hồ Chí Minh",
+      "address": "72 Lê Thánh Tôn, Hồ Chí Minh",
+      "items": [
+        {
+          "name": "Combo Couple",
+          "price": 89000,
+          "description": "1 bắp lớn + 2 nước"
+        }
+      ]
+    }
+  ]
+}
+```
+
+**Test URL:** `http://localhost:8080/api/n8n/food-combos?cinemaId=1`
 
 ---
 
