@@ -335,6 +335,27 @@ export const cinemaComplexService = {
   },
 
   /**
+   * Kiểm tra xem phim có thể xóa khỏi cụm rạp được không (Manager)
+   * @param {number} complexId - ID của cụm rạp
+   * @param {number} movieId - ID của phim
+   * @returns {Promise<Object>} Response từ server
+   */
+  checkMovieCanBeRemovedManager: async (complexId, movieId) => {
+    try {
+      const response = await axiosInstance.get(`/manager/cinema-complex/${complexId}/movies/${movieId}/check-delete`);
+      return {
+        success: true,
+        canRemove: response.data.data.canRemove,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error.message || 'Không thể kiểm tra trạng thái xóa phim',
+      };
+    }
+  },
+
+  /**
    * Xóa phim khỏi cụm rạp (Manager)
    * @param {number} complexId - ID của cụm rạp
    * @param {number} movieId - ID của phim

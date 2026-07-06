@@ -223,6 +223,32 @@ public class ManagerController {
         }
     }
     
+    /**
+     * Kiểm tra xem phim có thể xóa khỏi cụm rạp được không (Manager)
+     */
+    @GetMapping("/cinema-complex/{complexId}/movies/{movieId}/check-delete")
+    public ResponseEntity<?> checkMovieCanBeRemoved(@PathVariable Long complexId, @PathVariable Long movieId) {
+        try {
+            // Verify manager owns this complex
+            String username = SecurityContextHolder.getContext().getAuthentication().getName();
+            Optional<Long> managerComplexId = managerRepository.findCinemaComplexIdByUsername(username);
+            
+            if (!managerComplexId.isPresent() || !managerComplexId.get().equals(complexId)) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(createErrorResponse("Bạn không có quyền truy cập cụm rạp này"));
+            }
+            
+            boolean canRemove = cinemaComplexService.checkMovieCanBeRemoved(complexId, movieId);
+            Map<String, Object> result = new HashMap<>();
+            result.put("canRemove", canRemove);
+            
+            return ResponseEntity.ok(createSuccessResponse("Kiểm tra thành công", result));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(createErrorResponse("Có lỗi xảy ra: " + e.getMessage()));
+        }
+    }
+    
     // ============ ORDER MANAGEMENT ENDPOINTS ============
     
     /**

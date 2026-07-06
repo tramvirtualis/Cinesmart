@@ -27,6 +27,7 @@ public class OrderCreationService {
     private final PriceRepository priceRepository;
     private final CustomerRepository customerRepository;
     private final PriceService priceService;
+    private final TicketRepository ticketRepository;
     
     /**
      * Tạo đơn hàng từ booking info
@@ -114,6 +115,11 @@ public class OrderCreationService {
                 Seat seat = findSeatInRoom(room.getRoomId(), seatRow, seatColumn);
                 if (seat == null) {
                     throw new IllegalArgumentException("Seat not found: " + seatId + " in room " + room.getRoomId());
+                }
+                
+                // Kiểm tra xem ghế đã được đặt và thanh toán thành công chưa
+                if (ticketRepository.existsPaidTicketBySeatAndShowtime(seat.getSeatId(), showtimeId)) {
+                    throw new IllegalStateException("Ghế " + seatId + " đã được người khác đặt và thanh toán thành công. Vui lòng chọn ghế khác.");
                 }
                 
                 // Tính giá vé từ database
