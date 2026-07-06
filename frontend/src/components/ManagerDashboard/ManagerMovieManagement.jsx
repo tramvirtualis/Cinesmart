@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { enumService } from '../../services/enumService';
 import movieService from '../../services/movieService';
 import ConfirmDeleteModal from '../Common/ConfirmDeleteModal';
+import ConfirmModal from '../ConfirmModal';
 
 // Manager Movie Management Component
 function ManagerMovieManagement({ complexId }) {
@@ -14,6 +15,7 @@ function ManagerMovieManagement({ complexId }) {
   const [selectedMovie, setSelectedMovie] = useState(null);
   const [deleteModal, setDeleteModal] = useState({ isOpen: false, movieId: null, movieTitle: null });
   const [isDeleting, setIsDeleting] = useState(false);
+  const [errorModal, setErrorModal] = useState({ isOpen: false, message: '' });
 
   // Notification component
   const showNotification = (message, type = 'success') => {
@@ -139,8 +141,32 @@ function ManagerMovieManagement({ complexId }) {
     }
   };
 
-  const handleRemoveMovieClick = (movieId, movieTitle) => {
-    setDeleteModal({ isOpen: true, movieId, movieTitle });
+  const handleRemoveMovieClick = async (movieId, movieTitle) => {
+    if (!complexId) return;
+    
+    // Disable interaction while checking
+    setIsDeleting(true);
+    try {
+      const { default: cinemaComplexService } = await import('../../services/cinemaComplexService');
+      const checkResult = await cinemaComplexService.checkMovieCanBeRemovedManager(complexId, movieId);
+      
+      if (checkResult.success) {
+        if (checkResult.canRemove) {
+          // If safe to delete, show confirm modal
+          setDeleteModal({ isOpen: true, movieId, movieTitle });
+        } else {
+          // Has tickets, show error immediately without asking for confirmation
+          setErrorModal({ isOpen: true, message: 'Không thể xóa phim khỏi cụm rạp vì đã có vé được đặt cho phim này tại đây.' });
+        }
+      } else {
+        showNotification(checkResult.error || 'Có lỗi khi kiểm tra phim', 'error');
+      }
+    } catch (error) {
+      console.error('Error checking movie:', error);
+      showNotification('Có lỗi khi kiểm tra phim', 'error');
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   const handleCloseDeleteModal = () => {
@@ -168,11 +194,15 @@ function ManagerMovieManagement({ complexId }) {
         showNotification('Đã xóa phim khỏi danh sách cụm rạp thành công', 'success');
         setDeleteModal({ isOpen: false, movieId: null, movieTitle: null });
       } else {
-        showNotification(result.error || 'Không thể xóa phim khỏi cụm rạp', 'error');
+        const errMsg = result.error || 'Không thể xóa phim khỏi cụm rạp';
+        setDeleteModal({ isOpen: false, movieId: null, movieTitle: null });
+        setErrorModal({ isOpen: true, message: errMsg });
       }
     } catch (error) {
       console.error('Error removing movie:', error);
-      showNotification(error.message || 'Có lỗi xảy ra khi xóa phim', 'error');
+      const errMsg = error.message || 'Có lỗi xảy ra khi xóa phim';
+      setDeleteModal({ isOpen: false, movieId: null, movieTitle: null });
+      setErrorModal({ isOpen: true, message: errMsg });
     } finally {
       setIsDeleting(false);
     }
@@ -476,6 +506,18 @@ function ManagerMovieManagement({ complexId }) {
         message="Bạn có chắc chắn muốn xóa phim này khỏi cụm rạp? Phim sẽ bị xóa khỏi danh sách cụm rạp."
         confirmText="Xóa"
         isDeleting={isDeleting}
+      />
+
+      {/* Error Popup Modal */}
+      <ConfirmModal
+        isOpen={errorModal.isOpen}
+        onClose={() => setErrorModal({ isOpen: false, message: '' })}
+        onConfirm={() => setErrorModal({ isOpen: false, message: '' })}
+        title="Không thể xóa phim"
+        message={errorModal.message}
+        type="alert"
+        confirmText="Đã hiểu"
+        confirmButtonStyle="danger"
       />
     </>
   );

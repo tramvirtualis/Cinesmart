@@ -783,7 +783,7 @@ function ManagerReports({ orders: initialOrders, movies, cinemas, managerComplex
 
         <div className="admin-card" style={{ gridColumn: '1 / -1' }}>
           <div className="admin-card__header">
-            <h2 className="admin-card__title">Doanh thu theo ngày (30 ngày qua)</h2>
+            <h2 className="admin-card__title">Doanh thu theo ngày</h2>
           </div>
           <div className="admin-card__content">
             <ResponsiveContainer width="100%" height={300}>

@@ -234,6 +234,13 @@ public class CinemaComplexService {
     }
 
     /**
+     * Kiểm tra xem phim có thể xóa khỏi cụm rạp được không (không có vé đã thanh toán)
+     */
+    public boolean checkMovieCanBeRemoved(Long complexId, Long movieId) {
+        return !ticketRepository.existsPaidTicketsByMovieAndComplex(movieId, complexId);
+    }
+
+    /**
      * Xóa phim khỏi cụm rạp
      */
     @Transactional
@@ -252,6 +259,11 @@ public class CinemaComplexService {
         
         if (!exists) {
             throw new RuntimeException("Phim này không có trong danh sách cụm rạp");
+        }
+        
+        // Kiểm tra xem đã có vé đặt cho phim này tại cụm rạp chưa
+        if (ticketRepository.existsPaidTicketsByMovieAndComplex(movieId, complexId)) {
+            throw new RuntimeException("Không thể xóa phim khỏi cụm rạp vì đã có vé được đặt cho phim này tại đây");
         }
         
         // Remove movie from complex
