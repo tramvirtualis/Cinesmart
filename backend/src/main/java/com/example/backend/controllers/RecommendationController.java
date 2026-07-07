@@ -15,7 +15,7 @@ import java.util.List;
 import java.util.Optional;
 
 @RestController
-@RequestMapping("/api/public/recommendations")
+@RequestMapping("/api")
 @RequiredArgsConstructor
 @CrossOrigin
 public class RecommendationController {
@@ -24,7 +24,7 @@ public class RecommendationController {
     private final JwtUtils jwtUtils;
     private final UserRepository userRepository;
 
-    @GetMapping("/cinemas")
+    @GetMapping("/public/recommendations/cinemas")
     public ResponseEntity<List<CinemaComplexResponseDTO>> recommendCinemas(
             @RequestParam(required = false) Double latitude,
             @RequestParam(required = false) Double longitude) {
@@ -36,7 +36,7 @@ public class RecommendationController {
         }
     }
 
-    @GetMapping("/movies")
+    @GetMapping("/public/recommendations/movies")
     public ResponseEntity<List<MovieResponseDTO>> recommendMovies(HttpServletRequest request) {
         try {
             Long userId = getUserIdFromRequest(request);
