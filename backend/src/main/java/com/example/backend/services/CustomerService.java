@@ -16,6 +16,7 @@ import com.example.backend.repositories.UserRepository;
 import com.example.backend.repositories.VoucherRepository;
 import com.example.backend.services.MovieService;
 import com.example.backend.services.CloudinaryService;
+import com.example.backend.entities.enums.OrderStatus;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -193,7 +194,7 @@ public class CustomerService {
         
         // Kiểm tra xem voucher đã được sử dụng trong Order chưa (không tính CANCELLED)
         // Nếu đơn đã bị hủy (CANCELLED), voucher được hoàn về và có thể lưu lại nếu đã được lưu trước đó
-        boolean voucherUsed = orderRepository.existsByUserUserIdAndVoucherVoucherId(userId, voucherId);
+        boolean voucherUsed = orderRepository.existsByUserUserIdAndVoucherVoucherId(userId, voucherId, OrderStatus.CANCELLED);
         if (voucherUsed) {
             throw new RuntimeException("Voucher này đã được sử dụng và không thể lưu lại");
         }
@@ -283,7 +284,7 @@ public class CustomerService {
     
     @Transactional(readOnly = true)
     public boolean isVoucherUsed(Long userId, Long voucherId) {
-        return orderRepository.existsByUserUserIdAndVoucherVoucherId(userId, voucherId);
+        return orderRepository.existsByUserUserIdAndVoucherVoucherId(userId, voucherId, OrderStatus.CANCELLED);
     }
 
     private VoucherResponseDTO mapToDTO(Voucher voucher) {

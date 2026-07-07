@@ -303,14 +303,14 @@ public class MovieService {
     
     
     public List<MovieResponseDTO> getNowShowingMovies() {
-        List<Movie> movies = movieRepository.findNowShowingMovies();
+        List<Movie> movies = movieRepository.findNowShowingMovies(MovieStatus.ENDED);
         return movies.stream()
                 .map(this::convertToDTO)
                 .collect(Collectors.toList());
     }
     
     public List<MovieResponseDTO> getComingSoonMovies() {
-        List<Movie> movies = movieRepository.findComingSoonMovies();
+        List<Movie> movies = movieRepository.findComingSoonMovies(MovieStatus.ENDED);
         return movies.stream()
                 .map(this::convertToDTO)
                 .collect(Collectors.toList());

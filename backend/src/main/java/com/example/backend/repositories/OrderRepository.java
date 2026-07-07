@@ -66,8 +66,8 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
     Optional<Order> findByVnpTxnRef(String vnpTxnRef);
     
     // Check if voucher has been used by user in any order (excluding cancelled orders - can restore if order cancelled)
-    @Query("SELECT COUNT(o) > 0 FROM Order o WHERE o.user.userId = :userId AND o.voucher.voucherId = :voucherId AND o.status != 'CANCELLED'")
-    boolean existsByUserUserIdAndVoucherVoucherId(@Param("userId") Long userId, @Param("voucherId") Long voucherId);
+    @Query("SELECT COUNT(o) > 0 FROM Order o WHERE o.user.userId = :userId AND o.voucher.voucherId = :voucherId AND o.status != :status")
+    boolean existsByUserUserIdAndVoucherVoucherId(@Param("userId") Long userId, @Param("voucherId") Long voucherId, @Param("status") OrderStatus status);
     
     // Check if voucher has ever been used by user in any order (including cancelled orders)
     @Query("SELECT COUNT(o) > 0 FROM Order o WHERE o.user.userId = :userId AND o.voucher.voucherId = :voucherId")

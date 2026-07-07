@@ -21,17 +21,17 @@ public interface MovieRepository extends JpaRepository<Movie, Long> {
     @Query("SELECT DISTINCT m FROM Movie m " +
            "INNER JOIN m.versions mv " +
            "INNER JOIN mv.showtimes s " +
-           "WHERE m.status != 'ENDED' " +
+           "WHERE m.status != :status " +
            "ORDER BY m.releaseDate DESC")
-    List<Movie> findNowShowingMovies();
+    List<Movie> findNowShowingMovies(@Param("status") MovieStatus status);
     
     // Tìm phim sắp chiếu: Phim chưa có showtime nào
     // Logic mới: Phim chưa có showtime = "Sắp chiếu"
     @Query("SELECT m FROM Movie m " +
-           "WHERE m.status != 'ENDED' " +
+           "WHERE m.status != :status " +
            "AND NOT EXISTS (SELECT 1 FROM MovieVersion mv WHERE mv.movie = m AND EXISTS (SELECT 1 FROM Showtime s WHERE s.movieVersion = mv)) " +
            "ORDER BY m.releaseDate ASC")
-    List<Movie> findComingSoonMovies();
+    List<Movie> findComingSoonMovies(@Param("status") MovieStatus status);
 
     @Query("SELECT m FROM Movie m WHERE LOWER(m.title) LIKE LOWER(CONCAT('%', :keyword, '%')) ORDER BY m.title ASC")
     List<Movie> findByTitleContainingIgnoreCase(@Param("keyword") String keyword);
