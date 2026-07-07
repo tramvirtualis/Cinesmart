@@ -51,9 +51,9 @@ public class SecurityConfig {
                 if (!trimmed.isEmpty()) allowedOrigins.add(trimmed);
             }
         }
-        configuration.setAllowedOrigins(allowedOrigins);
+        configuration.setAllowedOriginPatterns(allowedOrigins);
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
-        // Must NOT use "*" with allowCredentials=true; list headers explicitly instead
+        // Using "*" in allowedHeaders with allowCredentials(true) is supported in Spring if allowedOriginPatterns is used
         configuration.setAllowedHeaders(Arrays.asList("*"));
         configuration.setAllowCredentials(true);
         configuration.setMaxAge(3600L);
