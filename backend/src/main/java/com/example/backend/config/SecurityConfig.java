@@ -54,10 +54,7 @@ public class SecurityConfig {
         configuration.setAllowedOrigins(allowedOrigins);
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
         // Must NOT use "*" with allowCredentials=true; list headers explicitly instead
-        configuration.setAllowedHeaders(Arrays.asList(
-                "Authorization", "Content-Type", "Accept", "Origin",
-                "X-Requested-With", "Access-Control-Request-Method",
-                "Access-Control-Request-Headers", "X-API-Key"));
+        configuration.setAllowedHeaders(Arrays.asList("*"));
         configuration.setAllowCredentials(true);
         configuration.setMaxAge(3600L);
         configuration.setExposedHeaders(Arrays.asList("Authorization"));
