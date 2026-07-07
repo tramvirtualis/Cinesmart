@@ -62,9 +62,7 @@ import java.util.stream.Collectors;
 @RequestMapping("/api/payment")
 @RequiredArgsConstructor
 @Slf4j
-@CrossOrigin(origins = {"http://localhost:5173", "http://localhost:3000", "https://cinesmart-movie-ticket-booking.vercel.app"},
-        allowedHeaders = "*",
-        allowCredentials = "true")
+@CrossOrigin
 public class PaymentController {
 
     // ZaloPay dependencies

@@ -24,7 +24,8 @@ public class MomoProperties {
     private String paymentCode = "";
     private String orderGroupId = "";
     private boolean autoCapture = true;
-    private String returnPageUrl = "http://localhost:5173/payment/momo-return";
+    @org.springframework.beans.factory.annotation.Value("${momo.return-page-url:http://localhost:5173/payment/momo-return}")
+    private String returnPageUrl;
     
     // Explicit getter để đảm bảo IDE nhận diện
     public String getReturnPageUrl() {

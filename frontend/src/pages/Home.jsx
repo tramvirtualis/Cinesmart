@@ -188,9 +188,10 @@ export default function Home() {
         setLoading(true);
         
         // Fetch phim đang chiếu và phim sắp chiếu song song
+        const apiBase = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api';
         const [nowShowingRes, comingSoonRes] = await Promise.all([
-          axios.get('http://localhost:8080/api/public/movies/now-showing'),
-          axios.get('http://localhost:8080/api/public/movies/coming-soon')
+          axios.get(`${apiBase}/public/movies/now-showing`),
+          axios.get(`${apiBase}/public/movies/coming-soon`)
         ]);
         
         setNowShowing(nowShowingRes.data.map(formatMovieData));
