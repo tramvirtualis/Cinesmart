@@ -17,9 +17,7 @@ import java.util.Optional;
 @RestController
 @RequestMapping("/api/public/recommendations")
 @RequiredArgsConstructor
-@CrossOrigin(origins = {"http://localhost:5173", "http://localhost:3000", "https://cinesmart-movie-ticket-booking.vercel.app"}, 
-             allowedHeaders = "*", 
-             allowCredentials = "true")
+@CrossOrigin
 public class RecommendationController {
 
     private final RecommendationService recommendationService;

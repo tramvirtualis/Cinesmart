@@ -36,9 +36,7 @@ import lombok.RequiredArgsConstructor;
 @RestController
 @RequestMapping("/api/wallet/pin")
 @RequiredArgsConstructor
-@CrossOrigin(origins = {"http://localhost:5173", "http://localhost:3000", "https://cinesmart-movie-ticket-booking.vercel.app"},
-        allowedHeaders = "*",
-        allowCredentials = "true")
+@CrossOrigin
 public class WalletPinController {
 
     private final WalletPinService walletPinService;

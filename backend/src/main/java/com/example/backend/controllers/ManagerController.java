@@ -37,9 +37,7 @@ import lombok.RequiredArgsConstructor;
 @RestController
 @RequestMapping("/api/manager")
 @RequiredArgsConstructor
-@CrossOrigin(origins = {"http://localhost:5173", "http://localhost:3000", "https://cinesmart-movie-ticket-booking.vercel.app"},
-             allowedHeaders = "*",
-             allowCredentials = "true")
+@CrossOrigin
 @PreAuthorize("hasRole('MANAGER')")
 public class ManagerController {
     

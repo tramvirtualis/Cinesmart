@@ -12,9 +12,7 @@ import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/enums")
-@CrossOrigin(origins = {"http://localhost:5173", "http://localhost:3000", "https://cinesmart-movie-ticket-booking.vercel.app"}, 
-             allowedHeaders = "*", 
-             allowCredentials = "true")
+@CrossOrigin
 public class EnumController {
 
     @GetMapping

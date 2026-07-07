@@ -24,9 +24,7 @@ import java.util.Map;
 @Slf4j
 @RestController
 @RequiredArgsConstructor
-@CrossOrigin(origins = {"http://localhost:5173", "http://localhost:3000", "https://cinesmart-movie-ticket-booking.vercel.app"},
-             allowedHeaders = "*",
-             allowCredentials = "true")
+@CrossOrigin
 public class ActivityLogController {
     
     private final ActivityLogService activityLogService;
