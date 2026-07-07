@@ -78,6 +78,7 @@ public class SecurityConfig {
                         // Public endpoints - không cần authentication
                         .requestMatchers("/api/auth/**").permitAll()
                         .requestMatchers("/api/public/**").permitAll()
+                        .requestMatchers("/error").permitAll()
                         .requestMatchers("/api/payment/wallet/**").permitAll() // Wallet - xử lý auth trong controller
                         .requestMatchers("/api/reviews/movie/**").permitAll() // Public access to movie reviews
                         .requestMatchers("/api/enums/**").permitAll() // Public access to enum values
