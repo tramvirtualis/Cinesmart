@@ -22,7 +22,7 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
     public void registerStompEndpoints(StompEndpointRegistry registry) {
         // Register the /ws endpoint, enabling SockJS fallback options
         registry.addEndpoint("/ws")
-                .setAllowedOrigins("http://localhost:5173", "http://localhost:3000")
+                .setAllowedOrigins("http://localhost:5173", "http://localhost:3000", "https://cinesmart-movie-ticket-booking.vercel.app")
                 .withSockJS();
     }
 }

@@ -33,7 +33,7 @@ import java.util.stream.Collectors;
 @RequestMapping("/api/customer")
 @RequiredArgsConstructor
 @CrossOrigin(origins = { "http://localhost:5173",
-        "http://localhost:3000" }, allowedHeaders = "*", allowCredentials = "true")
+        "http://localhost:3000", "https://cinesmart-movie-ticket-booking.vercel.app" }, allowedHeaders = "*", allowCredentials = "true")
 public class CustomerController {
 
     private final CustomerService customerService;

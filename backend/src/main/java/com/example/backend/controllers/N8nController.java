@@ -39,7 +39,7 @@ import java.util.Map;
 
 @RequiredArgsConstructor
 
-@CrossOrigin(origins = {"http://localhost:5173", "http://localhost:3000", "http://localhost:5678"},
+@CrossOrigin(origins = {"http://localhost:5173", "http://localhost:3000", "http://localhost:5678", "https://cinesmart-movie-ticket-booking.vercel.app"},
 
         allowedHeaders = "*",
 

@@ -23,7 +23,7 @@ import java.util.stream.Collectors;
 @RequestMapping("/api/admin/users")
 @RequiredArgsConstructor
 @CrossOrigin(
-    origins = {"http://localhost:5173", "http://localhost:3000"}, 
+    origins = {"http://localhost:5173", "http://localhost:3000", "https://cinesmart-movie-ticket-booking.vercel.app"}, 
     allowedHeaders = "*", 
     methods = {RequestMethod.GET, RequestMethod.POST, RequestMethod.PUT, RequestMethod.DELETE, RequestMethod.OPTIONS},
     allowCredentials = "true"

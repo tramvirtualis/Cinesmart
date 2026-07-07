@@ -32,6 +32,9 @@ public class ZaloPayService {
     @Value("${zalopay.callback.url}")
     private String callbackUrl;
 
+    @Value("${app.frontend-url:http://localhost:5173}")
+    private String frontendUrl;
+
     private final RestTemplate restTemplate = new RestTemplate();
     private final ObjectMapper objectMapper = new ObjectMapper();
 
@@ -76,7 +79,7 @@ public class ZaloPayService {
             // 3. Tạo embed_data (JSON string) nếu chưa có
             if (embedDataStr == null || embedDataStr.isEmpty()) {
                 Map<String, Object> embedData = new HashMap<>();
-                embedData.put("redirecturl", "http://localhost:5173/payment/success");
+                embedData.put("redirecturl", frontendUrl + "/payment/success");
                 embedDataStr = objectMapper.writeValueAsString(embedData);
             }
 
