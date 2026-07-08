@@ -35,16 +35,32 @@ public class MomoService {
             BigDecimal amount,
             String orderInfo,
             String extraData) {
+        return createPayment(orderId, requestId, amount, orderInfo, extraData, null, null);
+    }
+
+    public MomoCreatePaymentResponse createPayment(String orderId,
+            String requestId,
+            BigDecimal amount,
+            String orderInfo,
+            String extraData,
+            String redirectUrlOverride,
+            String ipnUrlOverride) {
         try {
             String amountStr = amount.setScale(0, RoundingMode.HALF_UP).toPlainString();
+            String redirectUrl = (redirectUrlOverride != null && !redirectUrlOverride.isBlank())
+                    ? redirectUrlOverride
+                    : properties.getRedirectUrl();
+            String ipnUrl = (ipnUrlOverride != null && !ipnUrlOverride.isBlank())
+                    ? ipnUrlOverride
+                    : properties.getIpnUrl();
 
             Map<String, Object> payload = new LinkedHashMap<>();
             payload.put("partnerCode", properties.getPartnerCode());
             payload.put("partnerName", properties.getPartnerName());
             payload.put("storeId", properties.getStoreId());
             payload.put("requestType", properties.getRequestType());
-            payload.put("ipnUrl", properties.getIpnUrl());
-            payload.put("redirectUrl", properties.getRedirectUrl());
+            payload.put("ipnUrl", ipnUrl);
+            payload.put("redirectUrl", redirectUrl);
             payload.put("orderId", orderId);
             payload.put("amount", amountStr);
             payload.put("lang", properties.getLang());
@@ -60,7 +76,7 @@ public class MomoService {
             payload.put("autoCapture", properties.isAutoCapture());
 
             String rawSignature = buildCreateSignature(orderId, requestId, amountStr, orderInfo,
-                    extraData != null ? extraData : "");
+                    extraData != null ? extraData : "", redirectUrl, ipnUrl);
             payload.put("signature", hmacSHA256(properties.getSecretKey(), rawSignature));
 
             HttpHeaders headers = new HttpHeaders();
@@ -133,15 +149,17 @@ public class MomoService {
             String requestId,
             String amount,
             String orderInfo,
-            String extraData) {
+            String extraData,
+            String redirectUrl,
+            String ipnUrl) {
         return "accessKey=" + properties.getAccessKey()
                 + "&amount=" + amount
                 + "&extraData=" + extraData
-                + "&ipnUrl=" + properties.getIpnUrl()
+                + "&ipnUrl=" + ipnUrl
                 + "&orderId=" + orderId
                 + "&orderInfo=" + orderInfo
                 + "&partnerCode=" + properties.getPartnerCode()
-                + "&redirectUrl=" + properties.getRedirectUrl()
+                + "&redirectUrl=" + redirectUrl
                 + "&requestId=" + requestId
                 + "&requestType=" + properties.getRequestType();
     }

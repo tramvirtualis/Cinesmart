@@ -1,6 +1,7 @@
 package com.example.backend.controllers;
 
 import com.example.backend.config.MomoProperties;
+import com.example.backend.config.PaymentUrlResolver;
 import com.example.backend.dtos.CreatePaymentRequest;
 import com.example.backend.dtos.PaymentOrderResponseDTO;
 import com.example.backend.dtos.MomoCreatePaymentResponse;
@@ -25,6 +26,7 @@ import com.example.backend.services.EmailService;
 import com.example.backend.services.LoyaltyService;
 import com.example.backend.services.WalletService;
 import com.example.backend.services.WalletPinService;
+import com.example.backend.services.PaymentReturnUrlStore;
 import com.example.backend.dtos.VerifyPinRequestDTO;
 import com.example.backend.utils.JwtUtils;
 import org.springframework.beans.factory.annotation.Value;
@@ -44,6 +46,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.net.URLEncoder;
@@ -87,6 +90,8 @@ public class PaymentController {
     private final WalletPinService walletPinService;
     private final JwtUtils jwtUtils;
     private final WalletTransactionRepository walletTransactionRepository;
+    private final PaymentUrlResolver paymentUrlResolver;
+    private final PaymentReturnUrlStore paymentReturnUrlStore;
 
     @Value("${app.frontend-url:http://localhost:5173}")
     private String frontendUrl;
@@ -98,10 +103,17 @@ public class PaymentController {
      */
     @PostMapping("/zalopay/create")
     @PreAuthorize("hasRole('CUSTOMER')")
-    public ResponseEntity<?> createZaloPayOrder(@RequestBody Map<String, Object> request) {
+    public ResponseEntity<?> createZaloPayOrder(@RequestBody Map<String, Object> request,
+                                                HttpServletRequest httpRequest) {
         try {
             System.out.println("=== ZaloPay Create Order Request ===");
             System.out.println("Request body: " + request);
+
+            String requestedFrontend = request.get("frontendUrl") != null
+                    ? request.get("frontendUrl").toString()
+                    : null;
+            String resolvedFrontend = paymentUrlResolver.resolveFrontendUrl(requestedFrontend, httpRequest);
+            System.out.println("Resolved frontend URL for ZaloPay redirect: " + resolvedFrontend);
             
             // Lấy user hiện tại
             User user = getCurrentUser().orElseThrow(() -> new RuntimeException("Không tìm thấy người dùng"));
@@ -273,7 +285,8 @@ public class PaymentController {
                         Long.valueOf(totalAmount.longValue()),
                         description,
                         existingTxnRef,
-                        null // embedDataStr - sẽ được tạo tự động trong service
+                        null,
+                        resolvedFrontend
                     );
                     
                     if (result != null && result.get("order_url") != null) {
@@ -391,13 +404,15 @@ public class PaymentController {
             order = orderService.save(order);
             
             System.out.println("Created Order ID: " + order.getOrderId() + ", TxnRef: " + txnRef);
+            paymentReturnUrlStore.save(txnRef, resolvedFrontend);
             
             // Tạo ZaloPay payment order
             Map<String, Object> result = zaloPayService.createPaymentOrder(
                 Long.valueOf(totalAmount.longValue()),
                 description,
                 txnRef,
-                null // embedDataStr - sẽ được tạo tự động trong service
+                null,
+                resolvedFrontend
             );
             
             System.out.println("ZaloPay Service Result: " + result);
@@ -408,6 +423,7 @@ public class PaymentController {
                 // Cập nhật vnpTxnRef với appTransId từ ZaloPay
                 order.setVnpTxnRef(appTransId);
                 orderService.save(order);
+                paymentReturnUrlStore.save(appTransId, resolvedFrontend);
                 
                 // Email sẽ được gửi khi thanh toán thành công (callback hoặc status check)
                 
@@ -752,7 +768,8 @@ public class PaymentController {
     @PostMapping("/momo/create")
     @PreAuthorize("hasRole('CUSTOMER')")
     public ResponseEntity<?> createMomoPayment(@Valid @RequestBody CreatePaymentRequest request,
-                                               BindingResult bindingResult) {
+                                               BindingResult bindingResult,
+                                               HttpServletRequest httpRequest) {
         if (bindingResult.hasErrors()) {
             return ResponseEntity.badRequest().body(createErrorResponse("Dữ liệu không hợp lệ", bindingResult));
         }
@@ -764,6 +781,11 @@ public class PaymentController {
             if (Boolean.FALSE.equals(user.getStatus())) {
                 return ResponseEntity.badRequest().body(createErrorResponse("Tài khoản của bạn đã bị chặn. Vui lòng liên hệ quản trị viên để được hỗ trợ.", null));
             }
+
+            String resolvedFrontend = paymentUrlResolver.resolveFrontendUrl(request.getFrontendUrl(), httpRequest);
+            String momoCallbackUrl = paymentUrlResolver.buildBackendCallbackUrl(httpRequest, "/api/payment/momo/ipn");
+            System.out.println("Resolved frontend URL for MoMo redirect: " + resolvedFrontend);
+            System.out.println("Resolved MoMo callback URL: " + momoCallbackUrl);
 
             // Parse booking info
             Long showtimeId = request.getShowtimeId();
@@ -915,6 +937,7 @@ public class PaymentController {
             // KHÔNG set vnpPayDate ở đây nữa, vì chưa thanh toán thành công
             // order.setVnpPayDate(now);
             order = orderService.save(order);
+            paymentReturnUrlStore.save(order.getVnpTxnRef(), resolvedFrontend);
             
             // Đảm bảo isTopUp được lưu và flush vào database ngay lập tức
             if (Boolean.TRUE.equals(order.getIsTopUp())) {
@@ -944,7 +967,9 @@ public class PaymentController {
                     requestId,
                     request.getAmount(),
                     order.getOrderInfo(),
-                    extraData
+                    extraData,
+                    momoCallbackUrl,
+                    momoCallbackUrl
             );
             if (momoResponse == null || momoResponse.getPayUrl() == null) {
                 // Xóa Order nếu không tạo được payment URL
@@ -1158,6 +1183,7 @@ public class PaymentController {
     @GetMapping("/momo/ipn")
     @Transactional
     public void handleMomoRedirect(@RequestParam Map<String, String> params,
+                                   HttpServletRequest httpRequest,
                                    HttpServletResponse response) throws IOException {
         String orderId = params.getOrDefault("orderId", "");
         String resultCode = params.getOrDefault("resultCode", "");
@@ -1272,7 +1298,12 @@ public class PaymentController {
         }
         
         // Redirect về /payment/success với các params cần thiết
-        String redirectUrl = frontendUrl + "/payment/success";
+        String returnBase = paymentReturnUrlStore.resolve(
+                orderId,
+                paymentUrlResolver.resolveFrontendUrl(null, httpRequest)
+        );
+        paymentReturnUrlStore.remove(orderId);
+        String redirectUrl = paymentUrlResolver.buildFrontendReturnUrl(returnBase, "/payment/success");
         StringBuilder queryParams = new StringBuilder();
         
         if (orderId != null && !orderId.isEmpty()) {

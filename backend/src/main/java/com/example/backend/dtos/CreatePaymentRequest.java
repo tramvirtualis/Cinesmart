@@ -34,7 +34,8 @@ public class CreatePaymentRequest {
     // Không dùng @Size validation ở đây vì PIN chỉ required khi paymentMethod = WALLET
     // Validation sẽ được kiểm tra trong controller
     private String pin;
+
+    /** URL frontend gửi lên (window.location.origin) để redirect sau thanh toán */
+    private String frontendUrl;
 }
-
-
 

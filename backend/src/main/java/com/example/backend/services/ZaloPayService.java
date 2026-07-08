@@ -57,6 +57,11 @@ public class ZaloPayService {
      */
     public Map<String, Object> createPaymentOrder(Long amount, String description, String orderId,
             String embedDataStr) {
+        return createPaymentOrder(amount, description, orderId, embedDataStr, null);
+    }
+
+    public Map<String, Object> createPaymentOrder(Long amount, String description, String orderId,
+            String embedDataStr, String frontendRedirectBase) {
         try {
             System.out.println("=== ZaloPayService.createPaymentOrder ===");
             System.out.println("Amount: " + amount);
@@ -79,7 +84,10 @@ public class ZaloPayService {
             // 3. Tạo embed_data (JSON string) nếu chưa có
             if (embedDataStr == null || embedDataStr.isEmpty()) {
                 Map<String, Object> embedData = new HashMap<>();
-                embedData.put("redirecturl", frontendUrl + "/payment/success");
+                String redirectBase = (frontendRedirectBase != null && !frontendRedirectBase.isBlank())
+                        ? frontendRedirectBase.replaceAll("/+$", "")
+                        : frontendUrl.replaceAll("/+$", "");
+                embedData.put("redirecturl", redirectBase + "/payment/success");
                 embedDataStr = objectMapper.writeValueAsString(embedData);
             }
 

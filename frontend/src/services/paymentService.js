@@ -2,6 +2,13 @@ import axios from 'axios';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api';
 
+const getFrontendUrl = () => {
+  if (typeof window !== 'undefined' && window.location?.origin) {
+    return window.location.origin;
+  }
+  return '';
+};
+
 const axiosInstance = axios.create({
   baseURL: API_BASE_URL,
   withCredentials: true,
@@ -63,7 +70,8 @@ export const paymentService = {
         amount,
         description,
         orderId,
-        bookingInfo
+        bookingInfo,
+        frontendUrl: getFrontendUrl(),
       });
       // Backend đã trả về {success: true, data: {...}}, không cần wrap thêm
       return response.data;
@@ -123,7 +131,10 @@ export const paymentService = {
    */
   createMomoPayment: async (payload) => {
     try {
-      const response = await axiosInstance.post('/payment/momo/create', payload);
+      const response = await axiosInstance.post('/payment/momo/create', {
+        ...payload,
+        frontendUrl: getFrontendUrl(),
+      });
       return {
         success: response.data?.success,
         message: response.data?.message,
@@ -195,7 +206,10 @@ export const paymentService = {
       if (token) {
         console.log('JWT token (first 20 chars):', token.substring(0, 20) + '...');
       }
-      const response = await axiosInstance.post('/payment/wallet/create', payload);
+      const response = await axiosInstance.post('/payment/wallet/create', {
+        ...payload,
+        frontendUrl: getFrontendUrl(),
+      });
       console.log('Wallet payment API response:', response.data);
       return {
         success: response.data?.success,
