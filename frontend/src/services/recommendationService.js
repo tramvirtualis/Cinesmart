@@ -1,35 +1,14 @@
-import axios from 'axios';
+import { authApi, publicApi, parseApiList } from './apiClient';
 
-const API_BASE_URL = 'http://localhost:8080/api';
-
-const axiosInstance = axios.create({
-  baseURL: API_BASE_URL,
-  withCredentials: true,
-  headers: {
-    'Content-Type': 'application/json',
-  },
-});
-
-axiosInstance.interceptors.request.use(
-  (config) => {
-    const token = localStorage.getItem('jwt');
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-    return config;
-  },
-  (error) => {
-    return Promise.reject(error);
-  }
-);
+const axiosInstance = authApi;
 
 export const recommendationService = {
   getRecommendedMovies: async () => {
     try {
-      const response = await axiosInstance.get('/public/recommendations/movies');
-      return { success: true, data: response.data };
+      const response = await publicApi.get('/public/recommendations/movies');
+      return { success: true, data: parseApiList(response.data) };
     } catch (error) {
-      return { success: false, error: 'Không thể tải đề xuất phim' };
+      return { success: false, error: 'Không thể tải đề xuất phim', data: [] };
     }
   },
 
@@ -39,8 +18,8 @@ export const recommendationService = {
       if (latitude !== null && longitude !== null) {
         params = { latitude, longitude };
       }
-      const response = await axiosInstance.get('/public/recommendations/cinemas', { params });
-      return { success: true, data: response.data };
+      const response = await publicApi.get('/public/recommendations/cinemas', { params });
+      return { success: true, data: parseApiList(response.data) };
     } catch (error) {
       return { success: false, error: 'Không thể tải đề xuất rạp' };
     }

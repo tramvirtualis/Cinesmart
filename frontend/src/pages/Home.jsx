@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
 import Header from '../components/Header.jsx';
 import HeroCarousel from '../components/HeroCarousel.jsx';
 import Footer from '../components/Footer.jsx';
@@ -10,14 +9,17 @@ import { enumService } from '../services/enumService';
 import { bannerService } from '../services/bannerService';
 import { voucherService } from '../services/voucherService';
 import { recommendationService } from '../services/recommendationService';
+import { movieService } from '../services/movieService';
+import { isVoucherActive } from '../services/apiClient';
 import interstellar from '../assets/images/interstellar.jpg';
 import inception from '../assets/images/inception.jpg';
 import darkKnightRises from '../assets/images/the-dark-knight-rises.jpg';
 import driveMyCar from '../assets/images/drive-my-car.jpg';
 
+const DEFAULT_BANNERS = [interstellar, inception, darkKnightRises, driveMyCar];
+
 // Helper function để map AgeRating từ backend sang format frontend (13+, 16+, 18+, P, K)
 const mapAgeRating = (ageRating) => {
-  // Use enumService to map age rating to display format
   return enumService.mapAgeRatingToDisplay(ageRating) || 'P';
 };
 
@@ -25,12 +27,10 @@ const mapAgeRating = (ageRating) => {
 const extractYouTubeId = (url) => {
   if (!url) return null;
   
-  // Nếu đã là ID thuần (11 ký tự)
   if (url.length === 11 && !url.includes('/') && !url.includes('?')) {
     return url;
   }
   
-  // Extract từ các dạng URL khác nhau
   const patterns = [
     /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([^&\n?#]+)/,
     /^([a-zA-Z0-9_-]{11})$/
@@ -46,22 +46,31 @@ const extractYouTubeId = (url) => {
   return null;
 };
 
-// Helper function để format movie data từ backend
+// Helper function để format movie data từ backend — null-safe
 const formatMovieData = (movie) => {
-  // Map genre to Vietnamese
+  if (!movie || movie.movieId == null) return null;
+
   let genreDisplay = 'N/A';
-  if (movie.genre && movie.genre.length > 0) {
-    genreDisplay = movie.genre.map(g => enumService.mapGenreToVietnamese(g)).join(', ');
+  const genres = movie.genre;
+  if (Array.isArray(genres) && genres.length > 0) {
+    genreDisplay = genres.map(g => enumService.mapGenreToVietnamese(g)).join(', ');
+  } else if (typeof genres === 'string' && genres.trim()) {
+    genreDisplay = genres.split(',').map(g => enumService.mapGenreToVietnamese(g.trim())).join(', ');
   }
   
   return {
     movieId: movie.movieId,
-    title: movie.title,
+    title: movie.title || 'Không có tên',
     genre: genreDisplay,
     poster: movie.poster,
     rating: mapAgeRating(movie.ageRating),
     trailerId: extractYouTubeId(movie.trailerURL)
   };
+};
+
+const mapMovies = (movies) => {
+  if (!Array.isArray(movies)) return [];
+  return movies.map(formatMovieData).filter(Boolean);
 };
 
 export default function Home() {
@@ -77,7 +86,6 @@ export default function Home() {
   const [loadingPromos, setLoadingPromos] = useState(true);
   const [loadingRecommended, setLoadingRecommended] = useState(true);
 
-  // Kiểm tra role - chặn admin và manager vào trang chủ
   useEffect(() => {
     const checkRole = () => {
       try {
@@ -86,50 +94,36 @@ export default function Home() {
           const user = JSON.parse(userStr);
           const role = (user.role || '').toString().toUpperCase().trim();
           
-          // Nếu là ADMIN hoặc MANAGER, redirect về dashboard tương ứng
           if (role === 'ADMIN') {
             navigate('/admin', { replace: true });
           } else if (role === 'MANAGER') {
             navigate('/manager', { replace: true });
           }
-          // CUSTOMER hoặc chưa đăng nhập được phép truy cập
         }
       } catch (e) {
         console.error('Error checking role:', e);
-        // Nếu có lỗi, vẫn cho phép truy cập (không block)
       }
     };
     
     checkRole();
   }, [navigate]);
 
-  // Fetch banners from backend
   useEffect(() => {
     const fetchBanners = async () => {
       try {
         setLoadingBanners(true);
         const result = await bannerService.getPublicBanners();
-        if (result.success && result.data) {
-          // Map banners to image URLs for HeroCarousel
+        if (result.success && result.data?.length > 0) {
           const bannerImages = result.data
-            .filter(banner => banner.image) // Only include banners with images
+            .filter(banner => banner.image)
             .map(banner => banner.image);
-          
-          // Fallback to default posters if no banners
-          if (bannerImages.length > 0) {
-            setBanners(bannerImages);
-          } else {
-            // Use default posters if no banners in database
-            setBanners([interstellar, inception, darkKnightRises, driveMyCar]);
-          }
+          setBanners(bannerImages.length > 0 ? bannerImages : DEFAULT_BANNERS);
         } else {
-          // Fallback to default posters on error
-          setBanners([interstellar, inception, darkKnightRises, driveMyCar]);
+          setBanners(DEFAULT_BANNERS);
         }
       } catch (err) {
         console.error('Error fetching banners:', err);
-        // Fallback to default posters on error
-        setBanners([interstellar, inception, darkKnightRises, driveMyCar]);
+        setBanners(DEFAULT_BANNERS);
       } finally {
         setLoadingBanners(false);
       }
@@ -138,36 +132,22 @@ export default function Home() {
     fetchBanners();
   }, []);
 
-  // Fetch public vouchers from backend
   useEffect(() => {
     const fetchVouchers = async () => {
       try {
         setLoadingPromos(true);
         const result = await voucherService.getPublicVouchers();
-        if (result.success && result.data) {
-          // Map vouchers to promo format
+        if (result.success && Array.isArray(result.data)) {
           const mappedPromos = result.data
-            .filter(voucher => {
-              // Only show active vouchers
-              const now = new Date();
-              const startDate = voucher.startDate ? new Date(voucher.startDate) : null;
-              const endDate = voucher.endDate ? new Date(voucher.endDate) : null;
-              
-              if (startDate && endDate) {
-                return now >= startDate && now <= endDate;
-              }
-              return true; // Include if dates are missing
-            })
-            .slice(0, 6) // Limit to 6 vouchers
+            .filter(isVoucherActive)
+            .slice(0, 6)
             .map(voucher => ({
               title: voucher.name || voucher.code || 'Voucher',
               desc: voucher.description || `Mã: ${voucher.code || 'N/A'}`,
               image: voucher.image || 'https://images.unsplash.com/photo-1511735111819-9a3f7709049c?q=80&w=200&auto=format&fit=crop'
             }));
-          
           setPromos(mappedPromos);
         } else {
-          // Fallback to empty array on error
           setPromos([]);
         }
       } catch (err) {
@@ -181,20 +161,21 @@ export default function Home() {
     fetchVouchers();
   }, []);
 
-  // Fetch movies from backend
   useEffect(() => {
     const fetchMovies = async () => {
       try {
         setLoading(true);
-        
-        // Fetch phim đang chiếu và phim sắp chiếu song song
-        const [nowShowingRes, comingSoonRes] = await Promise.all([
-          axios.get('http://localhost:8080/api/public/movies/now-showing'),
-          axios.get('http://localhost:8080/api/public/movies/coming-soon')
+        const [nowShowingResult, comingSoonResult] = await Promise.all([
+          movieService.getNowShowingMovies(),
+          movieService.getComingSoonMovies()
         ]);
-        
-        setNowShowing(nowShowingRes.data.map(formatMovieData));
-        setComingSoon(comingSoonRes.data.map(formatMovieData));
+
+        if (nowShowingResult.success) {
+          setNowShowing(mapMovies(nowShowingResult.data));
+        }
+        if (comingSoonResult.success) {
+          setComingSoon(mapMovies(comingSoonResult.data));
+        }
       } catch (err) {
         console.error('Error fetching movies:', err);
       } finally {
@@ -205,15 +186,13 @@ export default function Home() {
     fetchMovies();
   }, []);
 
-  // Fetch recommended movies
   useEffect(() => {
     const fetchRecommended = async () => {
       try {
         setLoadingRecommended(true);
         const result = await recommendationService.getRecommendedMovies();
-        if (result.success && result.data) {
-          // Take top 6 for recommendation
-          setRecommended(result.data.slice(0, 6).map(formatMovieData));
+        if (result.success && Array.isArray(result.data)) {
+          setRecommended(mapMovies(result.data).slice(0, 6));
         }
       } catch (err) {
         console.error('Error fetching recommended movies:', err);
@@ -238,7 +217,7 @@ export default function Home() {
     <div className="min-h-screen cinema-mood">
       <Header />
       <FloatingQuickBooking />
-      <HeroCarousel posters={banners.length > 0 ? banners : [interstellar, inception, darkKnightRises, driveMyCar]} />
+      <HeroCarousel posters={banners.length > 0 ? banners : DEFAULT_BANNERS} />
       
       <main className="main">
         {recommended.length > 0 && (
@@ -294,7 +273,6 @@ export default function Home() {
       </main>
       <Footer />
 
-      {/* Trailer Modal */}
       {trailerModal.isOpen && (
         <div
           className="trailer-modal"

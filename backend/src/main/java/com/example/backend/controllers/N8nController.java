@@ -39,11 +39,7 @@ import java.util.Map;
 
 @RequiredArgsConstructor
 
-@CrossOrigin(origins = {"http://localhost:5173", "http://localhost:3000", "http://localhost:5678"},
-
-        allowedHeaders = "*",
-
-        allowCredentials = "true")
+@CrossOrigin
 
 public class N8nController {
 

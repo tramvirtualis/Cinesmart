@@ -11,22 +11,21 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 
 @RestController
-@RequestMapping("/api/public/recommendations")
+@RequestMapping("/api")
 @RequiredArgsConstructor
-@CrossOrigin(origins = {"http://localhost:5173", "http://localhost:3000"}, 
-             allowedHeaders = "*", 
-             allowCredentials = "true")
+@CrossOrigin
 public class RecommendationController {
 
     private final RecommendationService recommendationService;
     private final JwtUtils jwtUtils;
     private final UserRepository userRepository;
 
-    @GetMapping("/cinemas")
+    @GetMapping("/public/recommendations/cinemas")
     public ResponseEntity<List<CinemaComplexResponseDTO>> recommendCinemas(
             @RequestParam(required = false) Double latitude,
             @RequestParam(required = false) Double longitude) {
@@ -34,18 +33,22 @@ public class RecommendationController {
             List<CinemaComplexResponseDTO> recommendations = recommendationService.recommendNearbyCinemas(latitude, longitude);
             return ResponseEntity.ok(recommendations);
         } catch (Exception e) {
-            return ResponseEntity.badRequest().build();
+            System.err.println("Error fetching cinema recommendations: " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.ok(Collections.emptyList());
         }
     }
 
-    @GetMapping("/movies")
+    @GetMapping("/public/recommendations/movies")
     public ResponseEntity<List<MovieResponseDTO>> recommendMovies(HttpServletRequest request) {
         try {
             Long userId = getUserIdFromRequest(request);
             List<MovieResponseDTO> recommendations = recommendationService.recommendMovies(userId);
             return ResponseEntity.ok(recommendations);
         } catch (Exception e) {
-            return ResponseEntity.badRequest().build();
+            System.err.println("Error fetching movie recommendations: " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.ok(Collections.emptyList());
         }
     }
 

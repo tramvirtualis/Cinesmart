@@ -1,15 +1,6 @@
-import axios from 'axios';
+import { authApi, publicApi, parseApiList } from './apiClient';
 
-const API_BASE_URL = 'http://localhost:8080/api';
-
-// Tạo axios instance với cấu hình mặc định
-const axiosInstance = axios.create({
-  baseURL: API_BASE_URL,
-  withCredentials: true,
-  headers: {
-    'Content-Type': 'application/json',
-  },
-});
+const axiosInstance = authApi;
 
 // Interceptor để thêm JWT token vào header
 axiosInstance.interceptors.request.use(
@@ -103,13 +94,8 @@ export const voucherService = {
    */
   getPublicVouchers: async () => {
     try {
-      console.log('voucherService: Calling /public/vouchers...');
-      const response = await axiosInstance.get('/public/vouchers');
-      console.log('voucherService: Response received:', response);
-      console.log('voucherService: Response data:', response.data);
-      // Endpoint public trả về trực tiếp array, không có wrapper
-      const vouchers = Array.isArray(response.data) ? response.data : (response.data.data || []);
-      console.log('voucherService: Parsed vouchers:', vouchers.length);
+      const response = await publicApi.get('/public/vouchers');
+      const vouchers = parseApiList(response.data);
       return {
         success: true,
         data: vouchers,
@@ -117,7 +103,6 @@ export const voucherService = {
       };
     } catch (error) {
       console.error('voucherService: Error loading public vouchers:', error);
-      console.error('voucherService: Error response:', error.response);
       const errorMessage = error.response?.data?.message || error.message || 'Không thể lấy danh sách voucher';
       return {
         success: false,

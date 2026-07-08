@@ -22,12 +22,7 @@ import java.util.stream.Collectors;
 @RestController
 @RequestMapping("/api/admin/users")
 @RequiredArgsConstructor
-@CrossOrigin(
-    origins = {"http://localhost:5173", "http://localhost:3000"}, 
-    allowedHeaders = "*", 
-    methods = {RequestMethod.GET, RequestMethod.POST, RequestMethod.PUT, RequestMethod.DELETE, RequestMethod.OPTIONS},
-    allowCredentials = "true"
-)
+@CrossOrigin
 public class UserController {
     
     private final UserService userService;

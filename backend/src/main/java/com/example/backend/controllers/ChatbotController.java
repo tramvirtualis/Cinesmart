@@ -15,9 +15,7 @@ import java.util.Map;
 
 @RestController
 @RequiredArgsConstructor
-@CrossOrigin(origins = {"http://localhost:5173", "http://localhost:3000"},
-        allowedHeaders = "*",
-        allowCredentials = "true")
+@CrossOrigin
 public class ChatbotController {
 
     private final ChatbotService chatbotService;

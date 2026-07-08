@@ -1,20 +1,9 @@
-import axios from 'axios';
-
-const API_BASE_URL = 'http://localhost:8080/api';
-
-const axiosInstance = axios.create({
-  baseURL: API_BASE_URL,
-  withCredentials: true,
-  headers: {
-    'Content-Type': 'application/json',
-  },
-});
+import { publicApi } from './apiClient';
 
 let cachedEnums = null;
 
 export const enumService = {
   getAllEnums: async () => {
-    // Return cached enums if available
     if (cachedEnums) {
       return {
         success: true,
@@ -23,7 +12,7 @@ export const enumService = {
     }
 
     try {
-      const response = await axiosInstance.get('/enums');
+      const response = await publicApi.get('/enums');
       cachedEnums = response.data;
       return {
         success: true,
@@ -37,7 +26,6 @@ export const enumService = {
     }
   },
 
-  // Helper function to map backend enum to frontend display format
   mapAgeRatingToDisplay: (ageRating) => {
     const mapping = {
       'AGE_13_PLUS': '13+',
@@ -79,7 +67,6 @@ export const enumService = {
     return mapping[display] || display;
   },
 
-  // Map genre enum to Vietnamese display
   mapGenreToVietnamese: (genre) => {
     const mapping = {
       'ACTION': 'Hành động',
@@ -100,24 +87,20 @@ export const enumService = {
     return mapping[genre] || genre;
   },
 
-  // Map array of genres to Vietnamese (comma-separated)
   mapGenresToVietnamese: (genres) => {
     if (!genres) return '';
     if (Array.isArray(genres)) {
       return genres.map(genre => enumService.mapGenreToVietnamese(genre)).join(', ');
     }
     if (typeof genres === 'string') {
-      // Handle comma-separated string
       return genres.split(',').map(g => enumService.mapGenreToVietnamese(g.trim())).join(', ');
     }
     return enumService.mapGenreToVietnamese(genres);
   },
 
-  // Clear cache (useful for testing or when enums might change)
   clearCache: () => {
     cachedEnums = null;
   },
 };
 
 export default enumService;
-

@@ -1,15 +1,6 @@
-import axios from 'axios';
+import { authApi, publicApi, parseApiList } from './apiClient';
 
-const API_BASE_URL = 'http://localhost:8080/api';
-
-// Tạo axios instance với cấu hình mặc định
-const axiosInstance = axios.create({
-  baseURL: API_BASE_URL,
-  withCredentials: true,
-  headers: {
-    'Content-Type': 'application/json',
-  },
-});
+const axiosInstance = authApi;
 
 // Interceptor để thêm JWT token vào header
 axiosInstance.interceptors.request.use(
@@ -158,10 +149,10 @@ export const bannerService = {
    */
   getPublicBanners: async () => {
     try {
-      const response = await axios.get(`${API_BASE_URL}/public/banners`);
+      const response = await publicApi.get('/public/banners');
       return {
         success: true,
-        data: Array.isArray(response.data) ? response.data : [],
+        data: parseApiList(response.data),
       };
     } catch (error) {
       console.error('Error fetching public banners:', error);

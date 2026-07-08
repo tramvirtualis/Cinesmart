@@ -243,7 +243,8 @@ export default function BookTicket() {
 
       // Load prices
       try {
-        const response = await fetch('http://localhost:8080/api/public/prices');
+        const apiBase = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api';
+        const response = await fetch(`${apiBase}/public/prices`);
         const result = await response.json();
         if (result.success && result.data) {
           // Map prices from backend format to frontend format
@@ -463,7 +464,8 @@ export default function BookTicket() {
 
           // Load currently selected seats (real-time status)
           try {
-            const statusResponse = await fetch(`http://localhost:8080/api/public/seats/status?showtimeId=${selectedShowtime.showtimeId}`);
+            const apiBase = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api';
+            const statusResponse = await fetch(`${apiBase}/public/seats/status?showtimeId=${selectedShowtime.showtimeId}`);
             const statusResult = await statusResponse.json();
 
             if (statusResult.success && statusResult.selectedSeats) {

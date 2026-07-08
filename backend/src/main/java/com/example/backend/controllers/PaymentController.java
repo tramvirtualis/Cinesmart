@@ -27,6 +27,7 @@ import com.example.backend.services.WalletService;
 import com.example.backend.services.WalletPinService;
 import com.example.backend.dtos.VerifyPinRequestDTO;
 import com.example.backend.utils.JwtUtils;
+import org.springframework.beans.factory.annotation.Value;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.validation.Valid;
@@ -61,9 +62,7 @@ import java.util.stream.Collectors;
 @RequestMapping("/api/payment")
 @RequiredArgsConstructor
 @Slf4j
-@CrossOrigin(origins = {"http://localhost:5173", "http://localhost:3000"},
-        allowedHeaders = "*",
-        allowCredentials = "true")
+@CrossOrigin
 public class PaymentController {
 
     // ZaloPay dependencies
@@ -88,6 +87,9 @@ public class PaymentController {
     private final WalletPinService walletPinService;
     private final JwtUtils jwtUtils;
     private final WalletTransactionRepository walletTransactionRepository;
+
+    @Value("${app.frontend-url:http://localhost:5173}")
+    private String frontendUrl;
 
     // ==================== ZaloPay Endpoints ====================
 
@@ -1270,7 +1272,7 @@ public class PaymentController {
         }
         
         // Redirect về /payment/success với các params cần thiết
-        String redirectUrl = "http://localhost:5173/payment/success";
+        String redirectUrl = frontendUrl + "/payment/success";
         StringBuilder queryParams = new StringBuilder();
         
         if (orderId != null && !orderId.isEmpty()) {

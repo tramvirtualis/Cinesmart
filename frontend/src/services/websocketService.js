@@ -23,7 +23,11 @@ class WebSocketService {
     this.onNotificationCallback = onNotification;
 
     // Create SockJS connection
-    const socket = new SockJS('http://localhost:8080/ws');
+    let wsUrl = import.meta.env.VITE_WS_BASE_URL || 'http://localhost:8080/ws';
+    if (window.location.protocol === 'https:' && wsUrl.startsWith('http://')) {
+      wsUrl = wsUrl.replace('http://', 'https://');
+    }
+    const socket = new SockJS(wsUrl);
     
     // Create STOMP client
     this.client = new Client({
@@ -250,7 +254,11 @@ class WebSocketService {
     }
 
     // Create SockJS connection
-    const socket = new SockJS('http://localhost:8080/ws');
+    let wsUrl = import.meta.env.VITE_WS_BASE_URL || 'http://localhost:8080/ws';
+    if (window.location.protocol === 'https:' && wsUrl.startsWith('http://')) {
+      wsUrl = wsUrl.replace('http://', 'https://');
+    }
+    const socket = new SockJS(wsUrl);
     
     // Create STOMP client
     this.client = new Client({

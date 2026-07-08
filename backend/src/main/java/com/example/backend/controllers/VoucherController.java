@@ -23,9 +23,7 @@ import java.util.stream.Collectors;
 
 @RestController
 @RequiredArgsConstructor
-@CrossOrigin(origins = {"http://localhost:5173", "http://localhost:3000"},
-             allowedHeaders = "*",
-             allowCredentials = "true")
+@CrossOrigin
 public class VoucherController {
     
     private final VoucherService voucherService;
@@ -197,7 +195,9 @@ public class VoucherController {
             
             return ResponseEntity.ok(vouchers);
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
+            System.err.println("Error fetching public vouchers: " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.ok(java.util.Collections.emptyList());
         }
     }
     

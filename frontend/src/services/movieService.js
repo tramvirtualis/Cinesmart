@@ -1,16 +1,7 @@
-import axios from 'axios';
 import { enumService } from './enumService';
+import { authApi, publicApi, parseApiList } from './apiClient';
 
-const API_BASE_URL = 'http://localhost:8080/api';
-
-// Tạo axios instance với cấu hình mặc định
-const axiosInstance = axios.create({
-  baseURL: API_BASE_URL,
-  withCredentials: true,
-  headers: {
-    'Content-Type': 'application/json',
-  },
-});
+const axiosInstance = authApi;
 
 // Interceptor để thêm JWT token vào header
 axiosInstance.interceptors.request.use(
@@ -177,17 +168,55 @@ export const movieService = {
    */
   getPublicMovieById: async (movieId) => {
     try {
-      const response = await axiosInstance.get(`/public/movies/${movieId}`);
-      // Endpoint public trả về trực tiếp MovieResponseDTO, không có wrapper
-      const movie = response.data;
+      const response = await publicApi.get(`/public/movies/${movieId}`);
       return {
         success: true,
-        data: movie,
+        data: response.data,
       };
     } catch (error) {
       return {
         success: false,
         error: error.message || 'Không thể lấy thông tin phim',
+      };
+    }
+  },
+
+  /**
+   * Lấy phim đang chiếu (Public endpoint)
+   * @returns {Promise<Object>} Response từ server
+   */
+  getNowShowingMovies: async () => {
+    try {
+      const response = await publicApi.get('/public/movies/now-showing');
+      return {
+        success: true,
+        data: parseApiList(response.data),
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error.message || 'Không thể lấy danh sách phim đang chiếu',
+        data: [],
+      };
+    }
+  },
+
+  /**
+   * Lấy phim sắp chiếu (Public endpoint)
+   * @returns {Promise<Object>} Response từ server
+   */
+  getComingSoonMovies: async () => {
+    try {
+      const response = await publicApi.get('/public/movies/coming-soon');
+      return {
+        success: true,
+        data: parseApiList(response.data),
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error.message || 'Không thể lấy danh sách phim sắp chiếu',
+        data: [],
       };
     }
   },
@@ -198,38 +227,16 @@ export const movieService = {
    */
   getPublicMovies: async () => {
     try {
-      const response = await axiosInstance.get('/public/movies');
-      // Endpoint public trả về trực tiếp array, không có wrapper
-      const movies = Array.isArray(response.data) ? response.data : [];
+      const response = await publicApi.get('/public/movies');
       return {
         success: true,
-        data: movies,
+        data: parseApiList(response.data),
       };
     } catch (error) {
       return {
         success: false,
         error: error.message || 'Không thể lấy danh sách phim',
         data: [],
-      };
-    }
-  },
-
-  /**
-   * Lấy phim theo ID (Public - không cần authentication)
-   * @param {number} movieId - ID của phim
-   * @returns {Promise<Object>} Response từ server
-   */
-  getPublicMovieById: async (movieId) => {
-    try {
-      const response = await axiosInstance.get(`/public/movies/${movieId}`);
-      return {
-        success: true,
-        data: response.data,
-      };
-    } catch (error) {
-      return {
-        success: false,
-        error: error.message || 'Không thể lấy thông tin phim',
       };
     }
   },

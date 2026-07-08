@@ -66,7 +66,8 @@ export default function FoodAndDrinks() {
       setLoadingMenu(true);
       try {
         const complexId = Number(selectedCinema);
-        const response = await fetch(`http://localhost:8080/api/public/menu/complex/${complexId}`);
+        const apiBase = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api';
+        const response = await fetch(`${apiBase}/public/menu/complex/${complexId}`);
         const result = await response.json();
         
         if (result.success && result.data) {

@@ -20,9 +20,7 @@ import lombok.RequiredArgsConstructor;
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/public/schedule")
-@CrossOrigin(origins = {"http://localhost:5173", "http://localhost:3000"},
-             allowedHeaders = "*",
-             allowCredentials = "true")
+@CrossOrigin
 public class ScheduleController {
 
     private final ScheduleService scheduleService;

@@ -1,7 +1,9 @@
 import axios from 'axios';
+import { publicApi, parseApiList } from './apiClient';
 
-const API_BASE_URL = 'http://localhost:8080/api';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api';
 
+// Axios instance cho admin/manager API (cần JWT)
 const axiosInstance = axios.create({
   baseURL: API_BASE_URL,
   withCredentials: true,
@@ -44,14 +46,6 @@ axiosInstance.interceptors.response.use(
   }
 );
 
-// Axios instance cho public API (không cần JWT)
-const publicAxiosInstance = axios.create({
-  baseURL: API_BASE_URL,
-  withCredentials: true,
-  headers: {
-    'Content-Type': 'application/json',
-  },
-});
 
 export const foodComboService = {
   /**
@@ -61,10 +55,10 @@ export const foodComboService = {
    */
   getFoodCombosByCinemaComplexId: async (complexId) => {
     try {
-      const response = await publicAxiosInstance.get(`/public/food-combos/cinema-complex/${complexId}`);
+      const response = await publicApi.get(`/public/food-combos/cinema-complex/${complexId}`);
       return {
         success: true,
-        data: response.data.data || response.data,
+        data: parseApiList(response.data),
         message: response.data.message || 'Lấy danh sách sản phẩm thành công',
       };
     } catch (error) {

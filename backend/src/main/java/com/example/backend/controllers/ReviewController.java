@@ -20,9 +20,7 @@ import java.util.stream.Collectors;
 @RestController
 @RequestMapping("/api/reviews")
 @RequiredArgsConstructor
-@CrossOrigin(origins = {"http://localhost:5173", "http://localhost:3000"}, 
-             allowedHeaders = "*", 
-             allowCredentials = "true")
+@CrossOrigin
 public class ReviewController {
     
     private final ReviewService reviewService;

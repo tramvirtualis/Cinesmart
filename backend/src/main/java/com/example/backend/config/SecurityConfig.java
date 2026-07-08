@@ -2,6 +2,7 @@ package com.example.backend.config;
 
 import com.example.backend.utils.JwtUtils;
 import java.util.Arrays;
+import org.springframework.beans.factory.annotation.Value;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -22,6 +23,11 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 @EnableWebSecurity
 @EnableMethodSecurity
 public class SecurityConfig {
+    @Value("${app.frontend-url:http://localhost:5173}")
+    private String frontendUrl;
+
+    @Value("${app.extra-allowed-origins:}")
+    private String extraAllowedOrigins;
 
     @Bean
     public JwtUtils jwtUtils() {
@@ -36,12 +42,31 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(Arrays.asList("http://localhost:5173", "http://localhost:3000"));
+        // Build allowed origins list: always include frontendUrl + any extra origins from env
+        java.util.List<String> allowedOrigins = new java.util.ArrayList<>();
+        allowedOrigins.add(frontendUrl);
+        if (extraAllowedOrigins != null && !extraAllowedOrigins.isBlank()) {
+            for (String origin : extraAllowedOrigins.split(",")) {
+                String trimmed = origin.trim();
+                if (!trimmed.isEmpty()) allowedOrigins.add(trimmed);
+            }
+        }
+        
+        // Add typical origins for development and production safety to match CustomCorsFilter
+        if (!allowedOrigins.contains("http://localhost:3000")) {
+            allowedOrigins.add("http://localhost:3000");
+        }
+        if (!allowedOrigins.contains("https://cinesmart-movie-ticket-booking.vercel.app")) {
+            allowedOrigins.add("https://cinesmart-movie-ticket-booking.vercel.app");
+        }
+
+        configuration.setAllowedOriginPatterns(allowedOrigins);
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
+        // Using "*" in allowedHeaders with allowCredentials(true) is supported in Spring if allowedOriginPatterns is used
         configuration.setAllowedHeaders(Arrays.asList("*"));
         configuration.setAllowCredentials(true);
         configuration.setMaxAge(3600L);
-        configuration.setExposedHeaders(Arrays.asList("Authorization")); // Thêm dòng này
+        configuration.setExposedHeaders(Arrays.asList("Authorization"));
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);
@@ -59,9 +84,12 @@ public class SecurityConfig {
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
+                        // Allow all OPTIONS requests (CORS preflight)
+                        .requestMatchers(org.springframework.http.HttpMethod.OPTIONS, "/**").permitAll()
                         // Public endpoints - không cần authentication
                         .requestMatchers("/api/auth/**").permitAll()
                         .requestMatchers("/api/public/**").permitAll()
+                        .requestMatchers("/error").permitAll()
                         .requestMatchers("/api/payment/wallet/**").permitAll() // Wallet - xử lý auth trong controller
                         .requestMatchers("/api/reviews/movie/**").permitAll() // Public access to movie reviews
                         .requestMatchers("/api/enums/**").permitAll() // Public access to enum values

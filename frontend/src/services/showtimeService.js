@@ -1,6 +1,7 @@
 import axios from 'axios';
+import { publicApi, parseApiList } from './apiClient';
 
-const API_BASE_URL = 'http://localhost:8080/api';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api';
 
 const axiosInstance = axios.create({
   baseURL: API_BASE_URL,
@@ -98,7 +99,7 @@ const showtimeService = {
    */
   getShowtimeById: async (showtimeId) => {
     try {
-      const response = await axiosInstance.get(`/public/showtimes/${showtimeId}`);
+      const response = await publicApi.get(`/public/showtimes/${showtimeId}`);
       return {
         success: true,
         data: response.data,
@@ -252,8 +253,8 @@ const showtimeService = {
       }
 
       const url = `/public/showtimes?${params.toString()}`;
-      const response = await axiosInstance.get(url);
-      const data = response.data.data || response.data || [];
+      const response = await publicApi.get(url);
+      const data = parseApiList(response.data);
       
       return {
         success: true,
@@ -276,10 +277,10 @@ const showtimeService = {
    */
   getBookedSeats: async (showtimeId) => {
     try {
-      const response = await axiosInstance.get(`/public/showtimes/${showtimeId}/booked-seats`);
+      const response = await publicApi.get(`/public/showtimes/${showtimeId}/booked-seats`);
       return {
         success: true,
-        data: response.data.data || response.data || [],
+        data: parseApiList(response.data),
         message: response.data.message || 'Lấy danh sách ghế đã đặt thành công',
       };
     } catch (error) {
