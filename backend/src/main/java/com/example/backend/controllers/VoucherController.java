@@ -195,7 +195,9 @@ public class VoucherController {
             
             return ResponseEntity.ok(vouchers);
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
+            System.err.println("Error fetching public vouchers: " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.ok(java.util.Collections.emptyList());
         }
     }
     

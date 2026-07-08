@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import axios from 'axios';
 import Header from '../components/Header.jsx';
+import { movieService } from '../services/movieService';
 import Footer from '../components/Footer.jsx';
 import { Section, CardsGrid } from '../components/SectionGrid.jsx';
 import { enumService } from '../services/enumService';
@@ -35,21 +35,30 @@ const extractYouTubeId = (url) => {
   return null;
 };
 
-// Helper function để format movie data từ backend
 const formatMovieData = (movie) => {
+  if (!movie || movie.movieId == null) return null;
+
   let genreDisplay = 'N/A';
-  if (movie.genre && movie.genre.length > 0) {
-    genreDisplay = movie.genre.map(g => enumService.mapGenreToVietnamese(g)).join(', ');
+  const genres = movie.genre;
+  if (Array.isArray(genres) && genres.length > 0) {
+    genreDisplay = genres.map(g => enumService.mapGenreToVietnamese(g)).join(', ');
+  } else if (typeof genres === 'string' && genres.trim()) {
+    genreDisplay = genres.split(',').map(g => enumService.mapGenreToVietnamese(g.trim())).join(', ');
   }
-  
+
   return {
     movieId: movie.movieId,
-    title: movie.title,
+    title: movie.title || 'Không có tên',
     genre: genreDisplay,
     poster: movie.poster,
     rating: mapAgeRating(movie.ageRating),
     trailerId: extractYouTubeId(movie.trailerURL)
   };
+};
+
+const mapMovies = (movies) => {
+  if (!Array.isArray(movies)) return [];
+  return movies.map(formatMovieData).filter(Boolean);
 };
 
 export default function SearchResults() {
@@ -68,14 +77,17 @@ export default function SearchResults() {
       try {
         setLoading(true);
         
-        const apiBase = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api';
-        const [nowShowingRes, comingSoonRes] = await Promise.all([
-          axios.get(`${apiBase}/public/movies/now-showing`),
-          axios.get(`${apiBase}/public/movies/coming-soon`)
+        const [nowShowingResult, comingSoonResult] = await Promise.all([
+          movieService.getNowShowingMovies(),
+          movieService.getComingSoonMovies()
         ]);
-        
-        setNowShowing(nowShowingRes.data.map(formatMovieData));
-        setComingSoon(comingSoonRes.data.map(formatMovieData));
+
+        if (nowShowingResult.success) {
+          setNowShowing(mapMovies(nowShowingResult.data));
+        }
+        if (comingSoonResult.success) {
+          setComingSoon(mapMovies(comingSoonResult.data));
+        }
       } catch (err) {
         console.error('Error fetching movies:', err);
       } finally {

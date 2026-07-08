@@ -11,6 +11,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 
@@ -32,7 +33,9 @@ public class RecommendationController {
             List<CinemaComplexResponseDTO> recommendations = recommendationService.recommendNearbyCinemas(latitude, longitude);
             return ResponseEntity.ok(recommendations);
         } catch (Exception e) {
-            return ResponseEntity.badRequest().build();
+            System.err.println("Error fetching cinema recommendations: " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.ok(Collections.emptyList());
         }
     }
 
@@ -43,7 +46,9 @@ public class RecommendationController {
             List<MovieResponseDTO> recommendations = recommendationService.recommendMovies(userId);
             return ResponseEntity.ok(recommendations);
         } catch (Exception e) {
-            return ResponseEntity.badRequest().build();
+            System.err.println("Error fetching movie recommendations: " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.ok(Collections.emptyList());
         }
     }
 

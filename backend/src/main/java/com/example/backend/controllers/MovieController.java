@@ -14,6 +14,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -140,7 +141,9 @@ public class MovieController {
             List<MovieResponseDTO> movies = movieService.getNowShowingMovies();
             return ResponseEntity.ok(movies);
         } catch (Exception e) {
-            return ResponseEntity.badRequest().build();
+            System.err.println("Error fetching now-showing movies: " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.ok(Collections.emptyList());
         }
     }
     
@@ -150,7 +153,9 @@ public class MovieController {
             List<MovieResponseDTO> movies = movieService.getComingSoonMovies();
             return ResponseEntity.ok(movies);
         } catch (Exception e) {
-            return ResponseEntity.badRequest().build();
+            System.err.println("Error fetching coming-soon movies: " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.ok(Collections.emptyList());
         }
     }
     
@@ -160,7 +165,9 @@ public class MovieController {
             List<MovieResponseDTO> movies = movieService.getAllMovies();
             return ResponseEntity.ok(movies);
         } catch (Exception e) {
-            return ResponseEntity.badRequest().build();
+            System.err.println("Error fetching all movies: " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.ok(Collections.emptyList());
         }
     }
     

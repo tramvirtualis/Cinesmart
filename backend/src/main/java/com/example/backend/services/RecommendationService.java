@@ -54,8 +54,14 @@ public class RecommendationService {
         allMovies.addAll(movieService.getNowShowingMovies());
         allMovies.addAll(movieService.getComingSoonMovies());
 
-        // Remove duplicates if any
-        allMovies = new ArrayList<>(new LinkedHashSet<>(allMovies));
+        // Remove duplicates by movieId
+        Map<Long, MovieResponseDTO> unique = new LinkedHashMap<>();
+        for (MovieResponseDTO movie : allMovies) {
+            if (movie.getMovieId() != null) {
+                unique.putIfAbsent(movie.getMovieId(), movie);
+            }
+        }
+        allMovies = new ArrayList<>(unique.values());
 
         if (userId == null) {
             return allMovies;

@@ -297,21 +297,20 @@ public class ShowtimeService {
         } else {
             LocalDateTime now = LocalDateTime.now();
             
-            // Tìm showtime sớm nhất và muộn nhất
+            // Tìm showtime sớm nhất (bỏ qua showtime thiếu thời gian)
             Optional<Showtime> earliestShowtime = showtimes.stream()
-                    .min((s1, s2) -> s1.getStartTime().compareTo(s2.getStartTime()));
+                    .filter(s -> s.getStartTime() != null)
+                    .min(java.util.Comparator.comparing(Showtime::getStartTime));
             Optional<Showtime> latestShowtime = showtimes.stream()
-                    .max((s1, s2) -> s1.getEndTime().compareTo(s2.getEndTime()));
+                    .filter(s -> s.getEndTime() != null)
+                    .max(java.util.Comparator.comparing(Showtime::getEndTime));
             
-            if (earliestShowtime.isPresent() && latestShowtime.isPresent()) {
+            if (earliestShowtime.isPresent()) {
                 LocalDateTime earliestStart = earliestShowtime.get().getStartTime();
                 
                 if (now.isBefore(earliestStart)) {
-                    // Tất cả showtime đều trong tương lai
                     newStatus = MovieStatus.COMING_SOON;
                 } else {
-                    // Có showtime đã bắt đầu hoặc đang diễn ra -> NOW_SHOWING
-                    // KHÔNG tự động set ENDED ngay cả khi tất cả showtime đã kết thúc
                     newStatus = MovieStatus.NOW_SHOWING;
                 }
             } else {

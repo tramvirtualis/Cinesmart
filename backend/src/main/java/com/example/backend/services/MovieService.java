@@ -1,7 +1,10 @@
 package com.example.backend.services;
 
 import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
@@ -303,16 +306,34 @@ public class MovieService {
     
     
     public List<MovieResponseDTO> getNowShowingMovies() {
-        List<Movie> movies = movieRepository.findNowShowingMovies(MovieStatus.ENDED);
-        return movies.stream()
-                .map(this::convertToDTO)
+        Map<Long, Movie> byId = new LinkedHashMap<>();
+        for (Movie movie : movieRepository.findByStatusOrderByReleaseDateDesc(MovieStatus.NOW_SHOWING)) {
+            byId.putIfAbsent(movie.getMovieId(), movie);
+        }
+        for (Movie movie : movieRepository.findNowShowingMovies(MovieStatus.ENDED)) {
+            byId.putIfAbsent(movie.getMovieId(), movie);
+        }
+        return byId.values().stream()
+                .map(this::safeConvertToDTO)
+                .filter(dto -> dto != null)
+                .sorted(Comparator.comparing(MovieResponseDTO::getReleaseDate,
+                        Comparator.nullsLast(Comparator.reverseOrder())))
                 .collect(Collectors.toList());
     }
     
     public List<MovieResponseDTO> getComingSoonMovies() {
-        List<Movie> movies = movieRepository.findComingSoonMovies(MovieStatus.ENDED);
-        return movies.stream()
-                .map(this::convertToDTO)
+        Map<Long, Movie> byId = new LinkedHashMap<>();
+        for (Movie movie : movieRepository.findByStatusOrderByReleaseDateAsc(MovieStatus.COMING_SOON)) {
+            byId.putIfAbsent(movie.getMovieId(), movie);
+        }
+        for (Movie movie : movieRepository.findComingSoonMovies(MovieStatus.ENDED)) {
+            byId.putIfAbsent(movie.getMovieId(), movie);
+        }
+        return byId.values().stream()
+                .map(this::safeConvertToDTO)
+                .filter(dto -> dto != null)
+                .sorted(Comparator.comparing(MovieResponseDTO::getReleaseDate,
+                        Comparator.nullsLast(Comparator.naturalOrder())))
                 .collect(Collectors.toList());
     }
     
@@ -386,27 +407,23 @@ public class MovieService {
         
         LocalDateTime now = LocalDateTime.now();
         
-        // Tìm showtime sớm nhất và muộn nhất
+        // Tìm showtime sớm nhất và muộn nhất (bỏ qua showtime thiếu thời gian)
         Optional<Showtime> earliestShowtime = showtimes.stream()
-                .min((s1, s2) -> s1.getStartTime().compareTo(s2.getStartTime()));
+                .filter(s -> s.getStartTime() != null)
+                .min(Comparator.comparing(Showtime::getStartTime));
         Optional<Showtime> latestShowtime = showtimes.stream()
-                .max((s1, s2) -> s1.getEndTime().compareTo(s2.getEndTime()));
+                .filter(s -> s.getEndTime() != null)
+                .max(Comparator.comparing(Showtime::getEndTime));
         
-        if (earliestShowtime.isPresent() && latestShowtime.isPresent()) {
+        if (earliestShowtime.isPresent()) {
             LocalDateTime earliestStart = earliestShowtime.get().getStartTime();
-            LocalDateTime latestEnd = latestShowtime.get().getEndTime();
             
             if (now.isBefore(earliestStart)) {
-                // Tất cả showtime đều trong tương lai
                 return MovieStatus.COMING_SOON;
-            } else {
-                // Có showtime đã bắt đầu hoặc đang diễn ra -> NOW_SHOWING
-                // KHÔNG tự động set ENDED ngay cả khi tất cả showtime đã kết thúc
-                return MovieStatus.NOW_SHOWING;
             }
+            return MovieStatus.NOW_SHOWING;
         }
         
-        // Fallback
         return MovieStatus.COMING_SOON;
     }
     
@@ -419,7 +436,6 @@ public class MovieService {
             return MovieStatus.COMING_SOON;
         }
         
-        // Lấy tất cả showtimes của phim
         List<Showtime> showtimes = showtimeRepository.findAllByMovieId(movie.getMovieId());
         
         if (showtimes.isEmpty()) {
@@ -428,30 +444,41 @@ public class MovieService {
         
         LocalDateTime now = LocalDateTime.now();
         
-        // Tìm showtime sớm nhất và muộn nhất
         Optional<Showtime> earliestShowtime = showtimes.stream()
-                .min((s1, s2) -> s1.getStartTime().compareTo(s2.getStartTime()));
+                .filter(s -> s.getStartTime() != null)
+                .min(Comparator.comparing(Showtime::getStartTime));
         Optional<Showtime> latestShowtime = showtimes.stream()
-                .max((s1, s2) -> s1.getEndTime().compareTo(s2.getEndTime()));
+                .filter(s -> s.getEndTime() != null)
+                .max(Comparator.comparing(Showtime::getEndTime));
         
         if (earliestShowtime.isPresent() && latestShowtime.isPresent()) {
             LocalDateTime earliestStart = earliestShowtime.get().getStartTime();
             LocalDateTime latestEnd = latestShowtime.get().getEndTime();
             
             if (now.isBefore(earliestStart)) {
-                // Tất cả showtime đều trong tương lai
                 return MovieStatus.COMING_SOON;
             } else if (now.isAfter(latestEnd)) {
-                // Tất cả showtime đã kết thúc
-                // Nhưng không tự động set ENDED, để admin quyết định
                 return MovieStatus.NOW_SHOWING;
             } else {
-                // Có showtime đang diễn ra hoặc sắp diễn ra
                 return MovieStatus.NOW_SHOWING;
             }
         }
         
+        if (earliestShowtime.isPresent()) {
+            return now.isBefore(earliestShowtime.get().getStartTime())
+                    ? MovieStatus.COMING_SOON : MovieStatus.NOW_SHOWING;
+        }
+        
         return MovieStatus.COMING_SOON;
+    }
+    
+    private MovieResponseDTO safeConvertToDTO(Movie movie) {
+        try {
+            return convertToDTO(movie);
+        } catch (Exception e) {
+            System.err.println("Failed to convert movie " + movie.getMovieId() + ": " + e.getMessage());
+            return null;
+        }
     }
     
     private MovieResponseDTO convertToDTO(Movie movie) {

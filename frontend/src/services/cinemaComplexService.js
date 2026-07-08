@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { publicApi, parseApiList } from './apiClient';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api';
 
@@ -51,11 +52,12 @@ export const cinemaComplexService = {
    */
   getAllCinemaComplexes: async () => {
     try {
-      const response = await axiosInstance.get('/public/cinema-complexes');
+      const response = await publicApi.get('/public/cinema-complexes');
+      const data = parseApiList(response.data);
       return {
         success: true,
-        data: response.data.data || response.data,
-        message: response.data.message || 'Lấy danh sách cụm rạp thành công',
+        data,
+        message: 'Lấy danh sách cụm rạp thành công',
       };
     } catch (error) {
       return {
@@ -92,10 +94,10 @@ export const cinemaComplexService = {
    */
   getPublicCinemaComplexById: async (complexId) => {
     try {
-      const response = await axiosInstance.get(`/public/cinema-complexes/${complexId}`);
+      const response = await publicApi.get(`/public/cinema-complexes/${complexId}`);
       return {
         success: true,
-        data: response.data,
+        data: response.data?.data ?? response.data,
       };
     } catch (error) {
       return {
@@ -112,11 +114,11 @@ export const cinemaComplexService = {
    */
   getComplexMoviesPublic: async (complexId) => {
     try {
-      const response = await axiosInstance.get(`/public/cinema-complexes/${complexId}/movies`);
+      const response = await publicApi.get(`/public/cinema-complexes/${complexId}/movies`);
       return {
         success: true,
-        data: response.data.data || [],
-        message: response.data.message || 'Lấy danh sách phim thành công',
+        data: parseApiList(response.data),
+        message: 'Lấy danh sách phim thành công',
       };
     } catch (error) {
       return {
