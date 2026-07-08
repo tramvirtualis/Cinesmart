@@ -134,10 +134,22 @@ const PaymentSuccess = () => {
     console.log('Payment method detected:', paymentMethod, 'txnRef:', txnRef);
 
     // Set initial info
+    const formatAmountParam = (rawAmount, method) => {
+      if (!rawAmount) return '';
+      const parsed = parseInt(rawAmount, 10);
+      if (Number.isNaN(parsed)) return '';
+      // VNPay truyền amount nhân 100; MoMo/ZaloPay truyền VND trực tiếp
+      const vnd = method === 'VNPay' ? parsed / 100 : parsed;
+      return new Intl.NumberFormat('vi-VN', {
+        style: 'currency',
+        currency: 'VND',
+      }).format(vnd);
+    };
+
     setPaymentInfo({
       paymentMethod,
       transactionId,
-      amount: amount ? (parseInt(amount) / 100).toLocaleString('vi-VN') + ' đ' : '',
+      amount: formatAmountParam(amount, paymentMethod),
       status: paymentStatus,
       orderId: '',
       txnRef: txnRef || '',

@@ -745,6 +745,21 @@ export default function BookTicket() {
     }, 0);
   }, [selectedRoom, selectedSeats, selectedShowtime, pricesData]);
 
+  const baseTotalPrice = useMemo(() => {
+    if (!selectedRoom || !selectedShowtime || selectedSeats.length === 0 || pricesData.length === 0) return 0;
+
+    return selectedSeats.reduce((total, seatId) => {
+      const seat = selectedRoom.seats.find(s => s.seatId === seatId);
+      if (!seat) return total;
+
+      const priceRecord = pricesData.find(p =>
+        p.roomType === selectedRoom.roomType && p.seatType === seat.type
+      );
+
+      return total + (priceRecord?.price || 0);
+    }, 0);
+  }, [selectedRoom, selectedSeats, selectedShowtime, pricesData]);
+
   const formatPrice = (price) => {
     return new Intl.NumberFormat('vi-VN', {
       style: 'currency',
@@ -1263,6 +1278,7 @@ export default function BookTicket() {
                                   room: selectedRoom,
                                   seats: Array.isArray(selectedSeats) ? selectedSeats : [], // Đảm bảo seats là array
                                   totalPrice: totalPrice,
+                                  baseTotalPrice: baseTotalPrice,
                                   movieTitle: movieData?.title || ''
                                 };
 

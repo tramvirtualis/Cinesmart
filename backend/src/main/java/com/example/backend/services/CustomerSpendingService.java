@@ -23,7 +23,7 @@ public class CustomerSpendingService {
 
     /**
      * Orders that count toward customer spending statistics and loyalty tier.
-     * Matches expense tab rules: paid (vnpPayDate), not top-up, not wallet payment.
+     * Matches expense tab rules: paid (vnpPayDate), not top-up.
      */
     public boolean isEligibleSpendingOrder(Order order) {
         if (order == null || order.getVnpPayDate() == null) {
@@ -32,7 +32,7 @@ public class CustomerSpendingService {
         if (Boolean.TRUE.equals(order.getIsTopUp())) {
             return false;
         }
-        return order.getPaymentMethod() != PaymentMethod.WALLET;
+        return true;
     }
 
     public boolean isWithinLast12Months(Order order, LocalDateTime cutoff) {

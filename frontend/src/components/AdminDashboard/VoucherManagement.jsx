@@ -11,7 +11,7 @@ function VoucherManagement({ vouchers: initialVouchersList, users: usersList, on
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
   const [filterType, setFilterType] = useState('');
-  const [filterPublic, setFilterPublic] = useState('');
+  const [filterScope, setFilterScope] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [editingVoucher, setEditingVoucher] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -166,8 +166,8 @@ function VoucherManagement({ vouchers: initialVouchersList, users: usersList, on
     }
     
     const matchesType = !filterType || v.discountType === filterType;
-    const matchesPublic = filterPublic === '' ? true : (filterPublic === 'true' ? v.isPublic : !v.isPublic);
-    return matchesSearch && matchesStatus && matchesType && matchesPublic;
+    const matchesScope = !filterScope || v.scope === filterScope;
+    return matchesSearch && matchesStatus && matchesType && matchesScope;
   });
 
   // Pagination calculation
@@ -179,7 +179,7 @@ function VoucherManagement({ vouchers: initialVouchersList, users: usersList, on
   // Reset to page 1 when filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, filterStatus, filterType, filterPublic]);
+  }, [searchTerm, filterStatus, filterType, filterScope]);
 
   // Get status display info
   const getStatusInfo = (status) => {
@@ -687,10 +687,13 @@ function VoucherManagement({ vouchers: initialVouchersList, users: usersList, on
                 );
               })}
             </select>
-            <select className="movie-filter" value={filterPublic} onChange={(e) => setFilterPublic(e.target.value)}>
+            <select className="movie-filter" value={filterScope} onChange={(e) => setFilterScope(e.target.value)}>
               <option value="">Tất cả loại</option>
-              <option value="true">Công khai</option>
-              <option value="false">Riêng tư</option>
+              <option value="PUBLIC">Công khai</option>
+              <option value="PRIVATE">Riêng tư</option>
+              <option value="SILVER">Hạng Bạc</option>
+              <option value="GOLD">Hạng Vàng</option>
+              <option value="PLATINUM">Hạng Bạch Kim</option>
             </select>
             <select className="movie-filter" value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}>
               <option value="">Tất cả trạng thái</option>

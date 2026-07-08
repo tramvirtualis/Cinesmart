@@ -354,8 +354,6 @@ public class LoyaltyService {
                     info.put("reason", "EXCLUDED - isTopUp=true");
                 } else if (o.getVnpPayDate() == null) {
                     info.put("reason", "EXCLUDED - vnpPayDate is NULL");
-                } else if (o.getPaymentMethod() == PaymentMethod.WALLET) {
-                    info.put("reason", "EXCLUDED - paid by WALLET");
                 } else {
                     info.put("reason", "EXCLUDED - not eligible");
                 }
