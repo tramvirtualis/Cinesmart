@@ -16,6 +16,13 @@ import java.util.List;
 @Order(Ordered.HIGHEST_PRECEDENCE)
 public class CustomCorsFilter implements Filter {
 
+    /**
+     * Wildcard (*) is NOT valid for Allow-Headers when Allow-Credentials is true.
+     * Browsers reject preflight with: "content-type is not allowed by Access-Control-Allow-Headers".
+     */
+    private static final String DEFAULT_ALLOWED_HEADERS =
+            "Content-Type, Authorization, Accept, Origin, X-Requested-With, X-API-Key, Cache-Control";
+
     @Value("${app.frontend-url:http://localhost:5173}")
     private String frontendUrl;
 
@@ -66,14 +73,23 @@ public class CustomCorsFilter implements Filter {
 
         res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS, PATCH");
         res.setHeader("Access-Control-Max-Age", "3600");
-        res.setHeader("Access-Control-Allow-Headers", "*");
+
+        // Reflect requested headers on preflight, or use explicit list (never "*" with credentials)
+        String requestedHeaders = req.getHeader("Access-Control-Request-Headers");
+        if (requestedHeaders != null && !requestedHeaders.isBlank()) {
+            res.setHeader("Access-Control-Allow-Headers", requestedHeaders);
+        } else {
+            res.setHeader("Access-Control-Allow-Headers", DEFAULT_ALLOWED_HEADERS);
+        }
+
         res.setHeader("Access-Control-Allow-Credentials", "true");
         res.setHeader("Access-Control-Expose-Headers", "Authorization");
 
         if ("OPTIONS".equalsIgnoreCase(req.getMethod())) {
             res.setStatus(HttpServletResponse.SC_OK);
-        } else {
-            chain.doFilter(request, response);
+            return;
         }
+
+        chain.doFilter(request, response);
     }
 }

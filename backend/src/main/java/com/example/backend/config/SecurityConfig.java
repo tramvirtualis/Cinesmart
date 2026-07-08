@@ -51,6 +51,15 @@ public class SecurityConfig {
                 if (!trimmed.isEmpty()) allowedOrigins.add(trimmed);
             }
         }
+        
+        // Add typical origins for development and production safety to match CustomCorsFilter
+        if (!allowedOrigins.contains("http://localhost:3000")) {
+            allowedOrigins.add("http://localhost:3000");
+        }
+        if (!allowedOrigins.contains("https://cinesmart-movie-ticket-booking.vercel.app")) {
+            allowedOrigins.add("https://cinesmart-movie-ticket-booking.vercel.app");
+        }
+
         configuration.setAllowedOriginPatterns(allowedOrigins);
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
         // Using "*" in allowedHeaders with allowCredentials(true) is supported in Spring if allowedOriginPatterns is used
